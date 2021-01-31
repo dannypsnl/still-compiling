@@ -1,0 +1,33 @@
+name: Racket
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  push:
+    branches:
+    - '*'
+    paths:
+    - '**.rkt'
+  pull_request:
+    branches:
+    - '*'
+    paths:
+    - '**.rkt'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        racket-variant: [ 'BC', 'CS' ]
+        racket-version: [ '7.8', '7.9', 'current' ]
+    steps:
+    - uses: actions/checkout@master
+    - name: Setup Racket
+      uses: Bogdanp/setup-racket@v0.12
+      with:
+        architecture: 'x64'   # (x64 or x86), ignored on Linux
+        variant: ${{ matrix.racket-variant }}
+        version: ${{ matrix.racket-version }}        # or 'current' for the latest snapshot
+    - run: raco pkg install --auto
+    - run: make test
