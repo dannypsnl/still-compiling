@@ -1,6 +1,6 @@
 #lang info
 (define collection "racket-project")
-(define deps '("base"))
+(define deps '("base" "nanopass"))
 (define build-deps '("scribble-lib" "racket-doc" "rackunit-lib"))
 (define scribblings '(("scribblings/racket-project.scrbl" ())))
 (define pkg-desc "Description Here")
