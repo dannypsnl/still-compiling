@@ -91,7 +91,7 @@
 
 (define ir-with-bb (IR->IR-BB prog leader*))
 
-(define-pass liveness-map : IR-BB (prog) -> * ()
+(define-pass liveness-map : IR-BB (bb) -> * ()
   (basic-block : BasicBlock (bb) -> * ()
                [(block ,inst* ...)
                 (define mark* (make-hash))
@@ -111,12 +111,15 @@
               (mark-use expr1 symbol*)]
              [else (void)])
   (mark-use : Expr (expr symbol*) -> * ()
-             [,name
-              (hash-set! symbol* name 'active)]
-             [else (void)])
+            [,name
+             (hash-set! symbol* name 'active)]
+            [else (void)])
+  (basic-block bb))
+
+(define-pass foreach-block : IR-BB (prog) -> * ()
   (Prog : Program (prog) -> * ()
         [(p ,bb* ...)
-         (map basic-block bb*)])
+         (map liveness-map bb*)])
   (Prog prog))
 
-(liveness-map ir-with-bb)
+(foreach-block ir-with-bb)
