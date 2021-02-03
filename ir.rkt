@@ -1,8 +1,5 @@
 #lang nanopass
 
-(define-syntax (unimplemented _)
-  #'(raise "unimplement"))
-
 (define (op? sym)
   (member sym '(+ - * / ^ = >= > <= <)))
 
