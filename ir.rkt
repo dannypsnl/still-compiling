@@ -22,8 +22,6 @@
         name
         int))
 
-(define-parser parse IR)
-
 (define-pass get-leader* : IR (prog) -> * ()
   (definitions
     ; init with 0 since the first instruction is leader
@@ -143,16 +141,47 @@
   (Prog prog))
 
 (define (all prog)
+  (define-parser parse IR)
   (define p (parse prog))
   (define leader* (get-leader* p))
   (define ir-with-bb (IR->IR-BB p leader*))
   (foreach-block ir-with-bb))
 
-(all '(p (assign a 1) ;0
-         (assign b 2) ;1
-         (assign-op c + a b) ;2
-         (assign-op d = c 3) ;3
-         (condbr d 6) ;4, jump to 6 is c=3
-         (assign c a) ;5
-         (assign c b) ;6
-         ))
+#;(all '(p (assign a 1) ;0
+           (assign b 2) ;1
+           (assign-op c + a b) ;2
+           (assign-op d = c 3) ;3
+           (condbr d 6) ;4, jump to 6 is c=3
+           (assign c a) ;5
+           (assign c b) ;6
+           ))
+
+(define-pass simplify : (IR-BB Inst) (inst) -> (IR-BB Inst) ()
+  (simplify-inst : Inst (inst) -> Inst ()
+                 [(assign-op ,name ,op ,expr0 ,expr1)
+                  (match* {op expr0 expr1}
+                    [{+ x 0} `(assign ,name ,x)]
+                    [{+ 0 x} `(assign ,name ,x)]
+                    [{- x 0} `(assign ,name ,x)]
+                    [{* x 1} `(assign ,name ,x)]
+                    [{* 1 x} `(assign ,name ,x)]
+                    [{/ x 1} `(assign ,name ,x)]
+                    [{_ _ _} inst])])
+  (simplify-inst inst))
+
+(module+ test
+  (require rackunit)
+
+  (with-output-language (IR-BB Inst)
+    (check-equal? (simplify `(assign-op a + x 0))
+                  `(assign a x))
+    (check-equal? (simplify `(assign-op a + 0 x))
+                  `(assign a x))
+    (check-equal? (simplify `(assign-op a - x 0))
+                  `(assign a x))
+    (check-equal? (simplify `(assign-op a * x 1))
+                  `(assign a x))
+    (check-equal? (simplify `(assign-op a * 1 x))
+                  `(assign a x))
+    (check-equal? (simplify `(assign-op a / x 1))
+                  `(assign a x))))
