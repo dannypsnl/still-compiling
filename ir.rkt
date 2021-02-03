@@ -47,17 +47,6 @@
                   (void)])
   (Prog prog))
 
-(define prog
-  (parse '(p (assign a 1) ;0
-             (assign b 2) ;1
-             (assign-op c + a b) ;2
-             (assign-op d = c 3) ;3
-             (condbr d 6) ;4, jump to 6 is c=3
-             (assign c 0) ;5
-             (assign c 1) ;6
-             )))
-(define leader* (get-leader* prog))
-
 ; IR-BB add BasicBlock and convert program from inst* to basic-block*
 (define-language IR-BB
   (extends IR)
@@ -89,8 +78,6 @@
   (inst-IR->BBIR : Inst (inst) -> Inst ())
   (convert prog))
 
-(define ir-with-bb (IR->IR-BB prog leader*))
-
 (define-pass liveness-map : IR-BB (bb) -> * ()
   (basic-block : BasicBlock (bb) -> * ()
                [(block ,inst* ...)
@@ -116,10 +103,56 @@
             [else (void)])
   (basic-block bb))
 
+(struct node (name node)
+  #:transparent)
+(define-pass basic-block->DAG : IR-BB (bb) -> * ()
+  (basic-block : BasicBlock (bb) -> * ()
+               [(block ,inst* ...)
+                (define name=>graph (make-hash))
+                (map (λ (inst)
+                       (inst->node inst name=>graph))
+                     inst*)])
+  (inst->node : Inst (inst name=>graph) -> * ()
+              [(assign ,name ,expr)
+               (define g (node name (expr->node expr name=>graph)))
+               (hash-set! name=>graph name g)
+               g]
+              [(assign-op ,name ,op ,expr0 ,expr1)
+               (define g (node name `(,op ,(expr->node expr0 name=>graph) ,(expr->node expr1 name=>graph))))
+               (hash-set! name=>graph name g)
+               g]
+              [(condbr ,cond ,int)
+               `(condbr ,(expr->node cond name=>graph) ,int)]
+              [(br ,int)
+               inst])
+  (expr->node : Expr (expr name=>graph) -> * ()
+              [,int int]
+              [,name (if (hash-ref name=>graph name #f)
+                         (hash-ref name=>graph name)
+                         (let ([val (gensym name)])
+                           (hash-set! name=>graph name val)
+                           val))])
+  (basic-block bb))
+
 (define-pass foreach-block : IR-BB (prog) -> * ()
   (Prog : Program (prog) -> * ()
         [(p ,bb* ...)
-         (map liveness-map bb*)])
+         (define inst=>liveness (map liveness-map bb*))
+         (for/list ([bb bb*])
+           (basic-block->DAG bb))])
   (Prog prog))
 
-(foreach-block ir-with-bb)
+(define (all prog)
+  (define p (parse prog))
+  (define leader* (get-leader* p))
+  (define ir-with-bb (IR->IR-BB p leader*))
+  (foreach-block ir-with-bb))
+
+(all '(p (assign a 1) ;0
+         (assign b 2) ;1
+         (assign-op c + a b) ;2
+         (assign-op d = c 3) ;3
+         (condbr d 6) ;4, jump to 6 is c=3
+         (assign c a) ;5
+         (assign c b) ;6
+         ))
