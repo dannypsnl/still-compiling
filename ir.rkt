@@ -14,8 +14,8 @@
   (Program (prog)
            (p inst* ...))
   (Inst (inst)
-        (assign name expr) => (name = expr)
-        (assign-op name op expr0 expr1) => (name = expr0 op expr1)
+        (assign name expr) => (name := expr)
+        (assign-op name op expr0 expr1) => (name := expr0 op expr1)
         (condbr cond int) => (if cond jump-to int)
         (br int) => (jump-to int))
   (Expr (expr cond)
@@ -58,6 +58,7 @@
              )))
 (define leader* (get-leader* prog))
 
+; IR-BB add BasicBlock and convert program from inst* to basic-block*
 (define-language IR-BB
   (extends IR)
   (Program (prog)
@@ -88,4 +89,34 @@
   (inst-IR->BBIR : Inst (inst) -> Inst ())
   (convert prog))
 
-(IR->IR-BB prog leader*)
+(define ir-with-bb (IR->IR-BB prog leader*))
+
+(define-pass liveness-map : IR-BB (prog) -> * ()
+  (basic-block : BasicBlock (bb) -> * ()
+               [(block ,inst* ...)
+                (define mark* (make-hash))
+                (define symbol* (make-hash))
+                (for ([inst (reverse inst*)])
+                  (mark-inst inst mark* symbol*))
+                mark*])
+  (mark-inst : Inst (inst mark* symbol*) -> * ()
+             [(assign ,name ,expr)
+              (hash-set! mark* inst (hash-copy symbol*))
+              (hash-set! symbol* name '(inactive dead))
+              (mark-use expr symbol*)]
+             [(assign-op ,name ,op ,expr0 ,expr1)
+              (hash-set! mark* inst (hash-copy symbol*))
+              (hash-set! symbol* name '(inactive dead))
+              (mark-use expr0 symbol*)
+              (mark-use expr1 symbol*)]
+             [else (void)])
+  (mark-use : Expr (expr symbol*) -> * ()
+             [,name
+              (hash-set! symbol* name 'active)]
+             [else (void)])
+  (Prog : Program (prog) -> * ()
+        [(p ,bb* ...)
+         (map basic-block bb*)])
+  (Prog prog))
+
+(liveness-map ir-with-bb)
