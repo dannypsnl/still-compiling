@@ -166,6 +166,7 @@
                     [{'* x 1} `(assign ,name ,x)]
                     [{'* 1 x} `(assign ,name ,x)]
                     [{'/ x 1} `(assign ,name ,x)]
+                    ; reduction in strength
                     [{'^ x 2} `(assign-op ,name * ,x ,x)]
                     [{'* x 2} `(assign-op ,name + ,x ,x)]
                     [{'* 2 x} `(assign-op ,name + ,x ,x)]
