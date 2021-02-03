@@ -4,7 +4,7 @@
   #'(raise "unimplement"))
 
 (define (op? sym)
-  (member sym '(+ - * / = >= > <= <)))
+  (member sym '(+ - * / ^ = >= > <= <)))
 
 (define-language IR
   (terminals
@@ -124,12 +124,12 @@
               [(br ,int)
                inst])
   (expr->node : Expr (expr name=>graph) -> * ()
-              [,int int]
               [,name (if (hash-ref name=>graph name #f)
                          (hash-ref name=>graph name)
                          (let ([val (gensym name)])
                            (hash-set! name=>graph name val)
-                           val))])
+                           val))]
+              [,int int])
   (basic-block bb))
 
 (define-pass foreach-block : IR-BB (prog) -> * ()
@@ -160,12 +160,15 @@
   (simplify-inst : Inst (inst) -> Inst ()
                  [(assign-op ,name ,op ,expr0 ,expr1)
                   (match* {op expr0 expr1}
-                    [{+ x 0} `(assign ,name ,x)]
-                    [{+ 0 x} `(assign ,name ,x)]
-                    [{- x 0} `(assign ,name ,x)]
-                    [{* x 1} `(assign ,name ,x)]
-                    [{* 1 x} `(assign ,name ,x)]
-                    [{/ x 1} `(assign ,name ,x)]
+                    [{'+ x 0} `(assign ,name ,x)]
+                    [{'+ 0 x} `(assign ,name ,x)]
+                    [{'- x 0} `(assign ,name ,x)]
+                    [{'* x 1} `(assign ,name ,x)]
+                    [{'* 1 x} `(assign ,name ,x)]
+                    [{'/ x 1} `(assign ,name ,x)]
+                    [{'^ x 2} `(assign-op ,name * ,x ,x)]
+                    [{'* x 2} `(assign-op ,name + ,x ,x)]
+                    [{'* 2 x} `(assign-op ,name + ,x ,x)]
                     [{_ _ _} inst])])
   (simplify-inst inst))
 
@@ -184,4 +187,10 @@
     (check-equal? (simplify `(assign-op a * 1 x))
                   `(assign a x))
     (check-equal? (simplify `(assign-op a / x 1))
-                  `(assign a x))))
+                  `(assign a x))
+    (check-equal? (simplify `(assign-op a ^ x 2))
+                  `(assign-op a * x x))
+    (check-equal? (simplify `(assign-op a * x 2))
+                  `(assign-op a + x x))
+    (check-equal? (simplify `(assign-op a * 2 x))
+                  `(assign-op a + x x))))
