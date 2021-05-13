@@ -47,7 +47,7 @@
   (extends IR)
   (Program (prog)
            (- (p inst* ...))
-           (+ (p basic-block* ...)))
+           (+ (p bb* ...)))
   (BasicBlock (bb)
               (+ (block inst* ...))))
 
@@ -147,10 +147,10 @@
 
 (define-pass bb*->DAG* : IR-BB (prog) -> * ()
   (Prog : Program (prog) -> * ()
-        [(p ,basic-block* ...)
-         (define inst=>liveness (map liveness-map basic-block*))
-         (for/list ([bb basic-block*])
-           (basic-block->DAG bb))])
+        [(p ,bb* ...)
+         (define inst=>liveness (map liveness-map bb*))
+         (for/list ([basic-block bb*])
+           (basic-block->DAG basic-block))])
   (Prog prog))
 
 (define (all prog)
