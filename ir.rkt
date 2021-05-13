@@ -47,7 +47,7 @@
   (extends IR)
   (Program (prog)
            (- (p inst* ...))
-           (+ (p bb* ...)))
+           (+ (p basic-block* ...)))
   (BasicBlock (bb)
               (+ (block inst* ...))))
 
@@ -70,7 +70,7 @@
 
 (define-pass IR->IR-BB : IR (prog leader*) -> IR-BB ()
   (definitions
-    (define bb* '())
+    (define basic-block* '())
     (define cur-block '()))
   (convert : Program (prog) -> Program ()
            [(p ,inst* ...)
@@ -80,10 +80,10 @@
               (if (member n leader*)
                   (if (empty? cur-block)
                     (set! cur-block cur-inst)
-                    (set! bb* (append bb* (list cur-block))))
+                    (set! basic-block* (append basic-block* (list cur-block))))
                   (set! cur-block (append cur-block cur-inst))))
-            (set! bb* (append bb* (list cur-block)))
-            `(p ,(map inst*->block bb*) ...)])
+            (set! basic-block* (append basic-block* (list cur-block)))
+            `(p ,(map inst*->block basic-block*) ...)])
   (inst*->block : * (inst*) -> BasicBlock ()
                 `(block ,inst* ...))
   (inst-IR->BBIR : Inst (inst) -> Inst ())
@@ -147,9 +147,9 @@
 
 (define-pass bb*->DAG* : IR-BB (prog) -> * ()
   (Prog : Program (prog) -> * ()
-        [(p ,bb* ...)
-         (define inst=>liveness (map liveness-map bb*))
-         (for/list ([bb bb*])
+        [(p ,basic-block* ...)
+         (define inst=>liveness (map liveness-map basic-block*))
+         (for/list ([bb basic-block*])
            (basic-block->DAG bb))])
   (Prog prog))
 
