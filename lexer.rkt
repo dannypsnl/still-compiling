@@ -87,15 +87,14 @@
 
 (define (next l)
   (set-lexer-offset! l (add1 (lexer-offset l)))
+  (set-lexer-column! l (add1 (lexer-column l)))
   (define c (peek-char (lexer-input l)
                        (- (lexer-offset l) (lexer-start l))))
   (if (eof-object? c)
       c
-      (let ()
-        (set-lexer-column! l (add1 (lexer-column l)))
-        (when (end-of-line? c)
-          (set-lexer-line! l (add1 (lexer-line l)))
-          (set-lexer-column! l 0)))))
+      (when (end-of-line? c)
+        (set-lexer-line! l (add1 (lexer-line l)))
+        (set-lexer-column! l 0))))
 
 (define (peek l) (peek-char (lexer-input l)
                             (- (lexer-offset l) (lexer-start l))))
@@ -175,19 +174,19 @@
              (check-equal? (channel-get (lexer-items l))
                            (token 'number "12" (pos 1 5)))
              (check-equal? (channel-get (lexer-items l))
-                           (token 'identifier "abc" (pos 1 7))))
+                           (token 'identifier "abc" (pos 1 8))))
 
   (test-case "spacing"
              (define l (lex "test" (open-input-string "  abc")))
              (check-equal? (channel-get (lexer-items l))
-                           (token 'identifier "abc" (pos 1 4))))
+                           (token 'identifier "abc" (pos 1 5))))
 
   (test-case "keywords"
              (define l (lex "test" (open-input-string "true false")))
              (check-equal? (channel-get (lexer-items l))
                            (token 'true "true" (pos 1 4)))
              (check-equal? (channel-get (lexer-items l))
-                           (token 'false "false" (pos 1 9))))
+                           (token 'false "false" (pos 1 10))))
 
   )
 
