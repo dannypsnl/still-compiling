@@ -18,12 +18,12 @@
 
 ; state functions
 (define (lex-white-space l)
-  (define c (peek l))
-  (when (or (eof-object? c)
-            (char-whitespace? c)
-            (end-of-line? c))
-    (next l)
-    (lex-white-space l))
+  (let loop ([c (peek l)])
+    (when (or (eof-object? c)
+              (char-whitespace? c)
+              (end-of-line? c))
+      (next l)
+      (loop (peek l))))
   (ignore l)
 
   (match (peek l)
@@ -86,12 +86,12 @@
     (run lexer)))
 
 (define (next l)
+  (set-lexer-offset! l (add1 (lexer-offset l)))
   (define c (peek-char (lexer-input l)
                        (- (lexer-offset l) (lexer-start l))))
   (if (eof-object? c)
       c
       (let ()
-        (set-lexer-offset! l (add1 (lexer-offset l)))
         (set-lexer-column! l (add1 (lexer-column l)))
         (when (end-of-line? c)
           (set-lexer-line! l (add1 (lexer-line l)))
@@ -173,7 +173,12 @@
              (check-equal? (channel-get (lexer-items l))
                            (token 'number "12" (pos 1 5)))
              (check-equal? (channel-get (lexer-items l))
-                           (token 'identifier "abc" (pos 1 8))))
+                           (token 'identifier "abc" (pos 1 7))))
+
+  (test-case "spacing"
+             (define l (lex "test" (open-input-string "  abc")))
+             (check-equal? (channel-get (lexer-items l))
+                           (token 'identifier "abc" (pos 1 2))))
 
   )
 
