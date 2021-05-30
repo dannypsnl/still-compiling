@@ -128,6 +128,8 @@
     (next l)))
 
 (define (ignore l)
+  (read-string (- (lexer-offset l) (lexer-start l))
+               (lexer-input l))
   (set-lexer-start! l (lexer-offset l)))
 
 (define (scan-number? l)
@@ -178,7 +180,7 @@
   (test-case "spacing"
              (define l (lex "test" (open-input-string "  abc")))
              (check-equal? (channel-get (lexer-items l))
-                           (token 'identifier "abc" (pos 1 2))))
+                           (token 'identifier "abc" (pos 1 4))))
 
   )
 
