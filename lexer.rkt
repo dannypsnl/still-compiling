@@ -125,9 +125,9 @@
   (accept-run l digits)
   (when (accept? l ".")
     (accept-run l digits))
-  (when (accept? l "eE") 
+  (when (accept? l "eE")
     (accept? l "+-")
-    (accept-run l "0123456789"))              
+    (accept-run l "0123456789"))
   ; Next thing mustn't be alphanumeric.
   (define c (peek l))
   (if (alpha-numeric? c)
