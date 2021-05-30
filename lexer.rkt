@@ -67,7 +67,7 @@
   #:mutable
   #:transparent)
 
-(struct item (typ val pos) #:transparent)
+(struct token (typ val pos) #:transparent)
 
 (define (run lexer)
   (when (lexer-state lexer)
@@ -89,7 +89,7 @@
 (define (peek l) (peek-char (lexer-input l)))
 
 (define (new-item l ty value)
-  (channel-put (lexer-items l) (item ty value (pos (lexer-line l) (lexer-column l)))))
+  (channel-put (lexer-items l) (token ty value (pos (lexer-line l) (lexer-column l)))))
 
 (define (emit l ty)
   (define value
@@ -155,11 +155,11 @@
   (test-case "lexing"
              (define l (lex "test" (open-input-string "31+12")))
              (check-equal? (channel-get (lexer-items l))
-                           (item 'number "31" (pos 1 2)))
+                           (token 'number "31" (pos 1 2)))
              (check-equal? (channel-get (lexer-items l))
-                           (item 'add "+" (pos 1 3)))
+                           (token 'add "+" (pos 1 3)))
              (check-equal? (channel-get (lexer-items l))
-                           (item 'number "12" (pos 1 5))))
+                           (token 'number "12" (pos 1 5))))
 
   )
 
