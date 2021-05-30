@@ -182,5 +182,12 @@
              (check-equal? (channel-get (lexer-items l))
                            (token 'identifier "abc" (pos 1 4))))
 
+  (test-case "keywords"
+             (define l (lex "test" (open-input-string "true false")))
+             (check-equal? (channel-get (lexer-items l))
+                           (token 'true "true" (pos 1 4)))
+             (check-equal? (channel-get (lexer-items l))
+                           (token 'false "false" (pos 1 9))))
+
   )
 
