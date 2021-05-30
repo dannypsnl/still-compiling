@@ -42,7 +42,17 @@
          (emit l 'div)
          lex-white-space]
     [(? char-numeric?) lex-number]
+    [(? alpha-numeric?) lex-identifier]
     [c (error 'unknown "don't know what to do with: `~a`" c)]))
+
+(define (lex-identifier l)
+  (let loop ([c (peek l)])
+    (when (alpha-numeric? c)
+      (next l)
+      (loop (peek l))))
+
+  (emit l 'identifier)
+  lex-white-space)
 
 (define (lex-number l)
   (when (scan-number? l)
@@ -155,13 +165,15 @@
   (require rackunit)
 
   (test-case "lexing"
-             (define l (lex "test" (open-input-string "31+12")))
+             (define l (lex "test" (open-input-string "31+12abc")))
              (check-equal? (channel-get (lexer-items l))
                            (token 'number "31" (pos 1 2)))
              (check-equal? (channel-get (lexer-items l))
                            (token 'add "+" (pos 1 3)))
              (check-equal? (channel-get (lexer-items l))
-                           (token 'number "12" (pos 1 5))))
+                           (token 'number "12" (pos 1 5)))
+             (check-equal? (channel-get (lexer-items l))
+                           (token 'identifier "abc" (pos 1 8))))
 
   )
 
