@@ -1,6 +1,8 @@
 #lang racket
 
-(provide lex)
+(provide lex lexer-items
+         (struct-out token)
+         (struct-out pos))
 
 ; export
 (define (lex name input-port)
