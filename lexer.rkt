@@ -87,7 +87,8 @@
           (set-lexer-line! l (add1 (lexer-line l)))
           (set-lexer-column! l 0)))))
 
-(define (peek l) (peek-char (lexer-input l)))
+(define (peek l) (peek-char (lexer-input l)
+                            (- (lexer-offset l) (lexer-start l))))
 
 (define (new-item l ty value)
   (channel-put (lexer-items l) (token ty value (pos (lexer-line l) (lexer-column l)))))
