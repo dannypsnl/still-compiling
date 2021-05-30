@@ -153,7 +153,7 @@
   (require rackunit)
 
   (test-case "lexing"
-             (define l (lex "test" (open-input-string "31+12n")))
+             (define l (lex "test" (open-input-string "31+12")))
              (check-equal? (channel-get (lexer-items l))
                            (token 'number "31" (pos 1 2)))
              (check-equal? (channel-get (lexer-items l))
