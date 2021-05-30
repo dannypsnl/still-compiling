@@ -76,7 +76,8 @@
     (run lexer)))
 
 (define (next l)
-  (define c (peek-char (lexer-input l)))
+  (define c (peek-char (lexer-input l)
+                       (- (lexer-offset l) (lexer-start l))))
   (if (eof-object? c)
       c
       (let ()
