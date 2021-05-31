@@ -57,10 +57,10 @@
   lex-white-space)
 
 (define (lex-number l)
-  (when (scan-number? l)
+  (when (not (scan-number? l))
     (error 'bad-number-syntax "bad number syntax: `~a`"
-           (read-string (- (lexer-offset l) (lexer-start l))
-                        (lexer-input l))))
+           (peek-string (- (lexer-offset l) (lexer-start l))
+                        0 (lexer-input l))))
   (emit l 'number)
   lex-white-space)
 
@@ -116,17 +116,18 @@
   (set-lexer-start! l (lexer-offset l)))
 
 (define (accept? l valid)
-  (if (and (char? (peek l))
-           (string-contains? valid (string (peek l))))
-      (let ()
-        (next l)
-        #t)
-      #f))
+  (cond
+    [(and (char? (peek l))
+          (string-contains? valid (string (peek l))))
+     (next l)
+     #t]
+    [else #f]))
 
 (define (accept-run l valid)
-  (when (and (char? (peek l))
-             (string-contains? valid (string (peek l))))
-    (next l)))
+  (let loop ([c (peek l)])
+    (when (and (char? c) (string-contains? valid (string c)))
+      (next l)
+      (loop (peek l)))))
 
 (define (ignore l)
   (read-string (- (lexer-offset l) (lexer-start l))
@@ -144,19 +145,17 @@
     (accept? l "+-")
     (accept-run l "0123456789"))
   ; Next thing mustn't be alphanumeric.
-  (define c (peek l))
-  (if (alpha-numeric? c)
-      (let ()
-        (next l)
-        #f)
-      #t))
+  (cond
+    [(alpha-numeric? (peek l))
+     (next l)
+     #f]
+    [else #t]))
 
 (define (alpha-numeric? c)
-  (if (eof-object? c)
-      #f
-      (or (char-ci=? c #\_)
-          (char-alphabetic? c)
-          (char-numeric? c))))
+  (and (char? c)
+       (or (char-ci=? c #\_)
+           (char-alphabetic? c)
+           (char-numeric? c))))
 
 (define (end-of-line? c)
   (match c
@@ -168,7 +167,7 @@
   (require rackunit)
 
   (test-case "lexing"
-             (define l (lex "test" (open-input-string "31+12abc")))
+             (define l (lex "test" (open-input-string "31+12 abc")))
              (check-equal? (channel-get (lexer-items l))
                            (token 'number "31" (pos 1 2)))
              (check-equal? (channel-get (lexer-items l))
@@ -176,7 +175,7 @@
              (check-equal? (channel-get (lexer-items l))
                            (token 'number "12" (pos 1 5)))
              (check-equal? (channel-get (lexer-items l))
-                           (token 'identifier "abc" (pos 1 8))))
+                           (token 'identifier "abc" (pos 1 9))))
 
   (test-case "spacing"
              (define l (lex "test" (open-input-string "  abc")))
@@ -190,5 +189,17 @@
              (check-equal? (channel-get (lexer-items l))
                            (token 'false "false" (pos 1 10))))
 
-  )
+  (test-case "longer expression"
+             (define l (lex "test" (open-input-string "1 + 2 * 3")))
+             (check-equal? (channel-get (lexer-items l))
+                           (token 'number "1" (pos 1 1)))
+             (check-equal? (channel-get (lexer-items l))
+                           (token 'add "+" (pos 1 3)))
+             (check-equal? (channel-get (lexer-items l))
+                           (token 'number "2" (pos 1 5)))
+             (check-equal? (channel-get (lexer-items l))
+                           (token 'mul "*" (pos 1 7)))
+             (check-equal? (channel-get (lexer-items l))
+                           (token 'number "3" (pos 1 9))))
 
+  )
