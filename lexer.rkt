@@ -21,9 +21,9 @@
 ; state functions
 (define (lex-white-space l)
   (let loop ([c (peek l)])
-    (when (or (eof-object? c)
-              (char-whitespace? c)
-              (end-of-line? c))
+    (when (and (not (eof-object? c))
+               (or (char-whitespace? c)
+                   (end-of-line? c)))
       (next l)
       (loop (peek l))))
   (ignore l)
