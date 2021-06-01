@@ -71,16 +71,16 @@
 
 (define (get-token p fixed-offset)
   (when (vector-empty? (parser-tokens p))
-    (get-token-from-lex p))
+    (increase-token-stream p))
   (define tokens (parser-tokens p))
   (if (>= fixed-offset (vector-length tokens))
       (let ([last-token (vector-ref tokens (sub1 (vector-length tokens)))])
         (case (token-typ last-token)
           [(EOF) last-token]
-          [else (get-token-from-lex p)
+          [else (increase-token-stream p)
                 (get-token p fixed-offset)]))
       (vector-ref tokens fixed-offset)))
-(define (get-token-from-lex p)
+(define (increase-token-stream p)
   (define l (parser-lexer p))
   (define new-last-token (channel-get (lexer-items l)))
   (set-parser-tokens! p
