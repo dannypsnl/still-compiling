@@ -31,19 +31,18 @@
 
   lhs)
 
-(define (right-assoc? token) #f)
-
 (define (parse-unary p)
-  (case (token-typ (peek p))
+  (define tok (peek p))
+  (case (token-typ tok)
     [(number) (take p)
-              (string->number (token-val (peek p)))]
+              (string->number (token-val tok))]
     [(true) (take p)
             'true]
     [(false) (take p)
              'false]
     [(identifier) (take p)
-                  (token-val (peek p))]
-    [else (error 'unknown "~a" (peek p))]))
+                  (token-val tok)]
+    [else (error 'unknown "~a" tok)]))
 
 ; helper
 (struct parser (name lexer tokens offset)
@@ -86,6 +85,7 @@
   (set-parser-tokens! p
                       (vector-append (parser-tokens p) (vector new-last-token))))
 
+(define (right-assoc? token) #f)
 (define (precedence token)
   (case (token-typ token)
     [(add sub) 2]
