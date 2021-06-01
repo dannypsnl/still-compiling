@@ -78,7 +78,6 @@
         (case (token-typ last-token)
           [(EOF) last-token]
           [else (get-token-from-lex p)
-                (set! tokens (parser-tokens p))
                 (get-token p fixed-offset)]))
       (vector-ref tokens fixed-offset)))
 (define (get-token-from-lex p)
