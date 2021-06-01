@@ -100,7 +100,7 @@
   (check-equal? (parse "parsing" (open-input-string "12 + 23 * 34"))
                 (binary 'add 12 (binary 'mul 23 34)))
 
-  (test-case ""
+  (test-case "increase token stream automatically"
              (define lexer (lex "" (open-input-string "12 + 23 * 34")))
              (define p (parser "" lexer (vector) 0))
              (check-equal? (get-token p 4)
