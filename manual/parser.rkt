@@ -73,12 +73,14 @@
   (when (vector-empty? (parser-tokens p))
     (get-token-from-lex p))
   (define tokens (parser-tokens p))
-  (define last-token (vector-ref tokens (sub1 (vector-length tokens))))
-  (case (token-typ last-token)
-    [(EOF) last-token]
-    [else (get-token-from-lex p)
-          (set! tokens (parser-tokens p))])
-  (vector-ref tokens fixed-offset))
+  (if (>= fixed-offset (vector-length tokens))
+      (let ([last-token (vector-ref tokens (sub1 (vector-length tokens)))])
+        (case (token-typ last-token)
+          [(EOF) last-token]
+          [else (get-token-from-lex p)
+                (set! tokens (parser-tokens p))
+                (get-token p fixed-offset)]))
+      (vector-ref tokens fixed-offset)))
 (define (get-token-from-lex p)
   (define l (parser-lexer p))
   (define new-last-token (channel-get (lexer-items l)))
@@ -96,5 +98,10 @@
   (require rackunit)
 
   (check-equal? (parse "parsing" (open-input-string "12 + 23 * 34"))
-                (binary 'add 12 (binary 'mul 23 34))))
+                (binary 'add 12 (binary 'mul 23 34)))
 
+  (test-case ""
+             (define lexer (lex "" (open-input-string "12 + 23 * 34")))
+             (define p (parser "" lexer (vector) 0))
+             (check-equal? (get-token p 4)
+                           (token 'number "34" (pos 1 12)))))
