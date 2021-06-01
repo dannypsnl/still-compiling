@@ -22,7 +22,7 @@
         (when (or (> (precedence lookahead) (precedence operator))
                   (and (right-assoc? lookahead)
                        (= (precedence lookahead) (precedence operator))))
-          (set! rhs (parse-expr p lhs (precedence lookahead)))
+          (set! rhs (parse-expr p rhs (precedence lookahead)))
           (set! lookahead (peek p))
           (loop)))
       (set! lhs (binary (token-typ operator)
@@ -95,6 +95,6 @@
 (module+ test
   (require rackunit)
 
-  (check-equal? (parse "parsing" (open-input-string "12 + 23"))
-                (binary 'add 12 23)))
+  (check-equal? (parse "parsing" (open-input-string "12 + 23 * 34"))
+                (binary 'add 12 (binary 'mul 23 34))))
 
