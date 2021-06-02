@@ -92,9 +92,10 @@
     [else #f]))
 (define (precedence token)
   (case (token-typ token)
-    [(and or eq) 2]
-    [(add sub) 3]
-    [(mul div ^) 4]
+    [(eq) 2]
+    [(and or) 3]
+    [(add sub) 4]
+    [(mul div ^) 5]
     [else 0]))
 
 (module+ test
@@ -111,4 +112,9 @@
 
   (test-case "right assoc"
              (check-equal? (parse "parsing" (open-input-string "12 ^ 23 ^ 34"))
-                           (binary '^ 12 (binary '^ 23 34)))))
+                           (binary '^ 12 (binary '^ 23 34))))
+
+  (check-equal? (parse "parsing" (open-input-string "true and true = true or false"))
+                (binary 'eq
+                        (binary 'and 'true 'true)
+                        (binary 'or 'true 'false))))
