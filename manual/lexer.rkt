@@ -43,6 +43,12 @@
     [#\/ (next l)
          (emit l 'div)
          lex-white-space]
+    [#\^ (next l)
+         (emit l '^)
+         lex-white-space]
+    [#\= (next l)
+         (emit l 'eq)
+         lex-white-space]
     [(? char-numeric?) lex-number]
     [(? alpha-numeric?) lex-identifier]
     [c (error 'unknown "don't know what to do with: `~a`" c)]))
@@ -112,6 +118,8 @@
     [(? eof-object?) (new-item l 'EOF value)]
     ["true" (new-item l 'true value)]
     ["false" (new-item l 'false value)]
+    ["and" (new-item l 'and value)]
+    ["or" (new-item l 'or value)]
     [else (new-item l ty value)])
   (set-lexer-start! l (lexer-offset l)))
 
