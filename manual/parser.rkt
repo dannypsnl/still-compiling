@@ -86,11 +86,15 @@
   (set-parser-tokens! p
                       (vector-append (parser-tokens p) (vector new-last-token))))
 
-(define (right-assoc? token) #f)
+(define (right-assoc? token)
+  (case (token-typ token)
+    [(^) #t]
+    [else #f]))
 (define (precedence token)
   (case (token-typ token)
-    [(add sub) 2]
-    [(mul div) 3]
+    [(and or eq) 2]
+    [(add sub) 3]
+    [(mul div ^) 4]
     [else 0]))
 
 (module+ test
@@ -103,4 +107,8 @@
              (define lexer (lex "" (open-input-string "12 + 23 * 34")))
              (define p (parser "" lexer (vector) 0))
              (check-equal? (get-token p 4)
-                           (token 'number "34" (pos 1 12)))))
+                           (token 'number "34" (pos 1 12))))
+
+  (test-case "right assoc"
+             (check-equal? (parse "parsing" (open-input-string "12 ^ 23 ^ 34"))
+                           (binary '^ 12 (binary '^ 23 34)))))
