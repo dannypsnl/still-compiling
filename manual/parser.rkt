@@ -91,12 +91,16 @@
     [(^) #t]
     [else #f]))
 (define (precedence token)
-  (case (token-typ token)
-    [(eq) 2]
-    [(and or) 3]
-    [(add sub) 4]
-    [(mul div ^) 5]
-    [else 0]))
+  (define op** '((eq)
+                 (and or)
+                 (add sub)
+                 (mul div ^)))
+  (define m (make-hash))
+  (for ([i (length op**)]
+        [op* op**])
+    (for ([op op*])
+      (hash-set! m op (+ 2 i))))
+  (hash-ref m (token-typ token) 0))
 
 (module+ test
   (require rackunit)
