@@ -77,7 +77,7 @@
   (name
    input ; list char
    state
-   ; for report position as format: (line, pos)
+   ; for report position as format: (line, column)
    line column
    ; lexing helpers
    offset start
