@@ -1,6 +1,6 @@
 #lang racket
 
-(provide lex lexer-items
+(provide lex lexer-tokens
          (struct-out token)
          (struct-out pos))
 
@@ -81,7 +81,7 @@
    line column
    ; lexing helpers
    offset start
-   items)
+   tokens)
   #:mutable
   #:transparent)
 
@@ -108,7 +108,7 @@
                             (- (lexer-offset l) (lexer-start l))))
 
 (define (new-item l ty value)
-  (channel-put (lexer-items l) (token ty value (pos (lexer-line l) (lexer-column l)))))
+  (channel-put (lexer-tokens l) (token ty value (pos (lexer-line l) (lexer-column l)))))
 
 (define (emit l ty)
   (define value
@@ -176,38 +176,38 @@
 
   (test-case "lexing"
              (define l (lex "test" (open-input-string "31+12 abc")))
-             (check-equal? (channel-get (lexer-items l))
+             (check-equal? (channel-get (lexer-tokens l))
                            (token 'number "31" (pos 1 2)))
-             (check-equal? (channel-get (lexer-items l))
+             (check-equal? (channel-get (lexer-tokens l))
                            (token 'add "+" (pos 1 3)))
-             (check-equal? (channel-get (lexer-items l))
+             (check-equal? (channel-get (lexer-tokens l))
                            (token 'number "12" (pos 1 5)))
-             (check-equal? (channel-get (lexer-items l))
+             (check-equal? (channel-get (lexer-tokens l))
                            (token 'identifier "abc" (pos 1 9))))
 
   (test-case "spacing"
              (define l (lex "test" (open-input-string "  abc")))
-             (check-equal? (channel-get (lexer-items l))
+             (check-equal? (channel-get (lexer-tokens l))
                            (token 'identifier "abc" (pos 1 5))))
 
   (test-case "keywords"
              (define l (lex "test" (open-input-string "true false")))
-             (check-equal? (channel-get (lexer-items l))
+             (check-equal? (channel-get (lexer-tokens l))
                            (token 'true "true" (pos 1 4)))
-             (check-equal? (channel-get (lexer-items l))
+             (check-equal? (channel-get (lexer-tokens l))
                            (token 'false "false" (pos 1 10))))
 
   (test-case "longer expression"
              (define l (lex "test" (open-input-string "1 + 2 * 3")))
-             (check-equal? (channel-get (lexer-items l))
+             (check-equal? (channel-get (lexer-tokens l))
                            (token 'number "1" (pos 1 1)))
-             (check-equal? (channel-get (lexer-items l))
+             (check-equal? (channel-get (lexer-tokens l))
                            (token 'add "+" (pos 1 3)))
-             (check-equal? (channel-get (lexer-items l))
+             (check-equal? (channel-get (lexer-tokens l))
                            (token 'number "2" (pos 1 5)))
-             (check-equal? (channel-get (lexer-items l))
+             (check-equal? (channel-get (lexer-tokens l))
                            (token 'mul "*" (pos 1 7)))
-             (check-equal? (channel-get (lexer-items l))
+             (check-equal? (channel-get (lexer-tokens l))
                            (token 'number "3" (pos 1 9))))
 
   )

@@ -82,7 +82,7 @@
       (vector-ref tokens fixed-offset)))
 (define (increase-token-stream p)
   (define l (parser-lexer p))
-  (define new-last-token (channel-get (lexer-items l)))
+  (define new-last-token (channel-get (lexer-tokens l)))
   (set-parser-tokens! p
                       (vector-append (parser-tokens p) (vector new-last-token))))
 
