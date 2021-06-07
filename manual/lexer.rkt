@@ -18,6 +18,9 @@
   (thread (λ () (run l)))
   l)
 
+(define keyword*
+  '("true" "false" "and" "or"))
+
 ; state functions
 (define (lex-white-space l)
   (let loop ([c (peek l)])
@@ -110,17 +113,20 @@
 (define (new-item l ty value)
   (channel-put (lexer-tokens l) (token ty value (pos (lexer-line l) (lexer-column l)))))
 
+(define keyword=>keyword-type
+  (make-hash
+   (map (λ (word)
+          (cons word (string->symbol word)))
+        keyword*)))
 (define (emit l ty)
   (define value
     (read-string (- (lexer-offset l) (lexer-start l))
                  (lexer-input l)))
   (match value
     [(? eof-object?) (new-item l 'EOF value)]
-    ["true" (new-item l 'true value)]
-    ["false" (new-item l 'false value)]
-    ["and" (new-item l 'and value)]
-    ["or" (new-item l 'or value)]
-    [else (new-item l ty value)])
+    [else (if (hash-ref keyword=>keyword-type value #f)
+              (new-item l (hash-ref keyword=>keyword-type value) value)
+              (new-item l ty value))])
   (set-lexer-start! l (lexer-offset l)))
 
 (define (accept? l valid)
