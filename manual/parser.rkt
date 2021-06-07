@@ -51,7 +51,7 @@
 
 (define (parse name input)
   (define lexer (lex name input))
-  (define p (parser name lexer (vector) 0))
+  (define p (parser name lexer (stream) 0))
   (parse-expr p #f 1))
 
 (define (peek p [n 0])
@@ -70,21 +70,21 @@
       (error 'unexpected-token "want ~a, got ~a" want (token-typ tok)))))
 
 (define (get-token p fixed-offset)
-  (when (vector-empty? (parser-tokens p))
+  (when (stream-empty? (parser-tokens p))
     (increase-token-stream p))
   (define tokens (parser-tokens p))
-  (if (>= fixed-offset (vector-length tokens))
-      (let ([last-token (vector-ref tokens (sub1 (vector-length tokens)))])
+  (if (>= fixed-offset (stream-length tokens))
+      (let ([last-token (stream-ref tokens (sub1 (stream-length tokens)))])
         (case (token-typ last-token)
           [(EOF) last-token]
           [else (increase-token-stream p)
                 (get-token p fixed-offset)]))
-      (vector-ref tokens fixed-offset)))
+      (stream-ref tokens fixed-offset)))
 (define (increase-token-stream p)
   (define l (parser-lexer p))
   (define new-last-token (channel-get (lexer-tokens l)))
   (set-parser-tokens! p
-                      (vector-append (parser-tokens p) (vector new-last-token))))
+                      (stream-append (parser-tokens p) (stream new-last-token))))
 
 (define (right-assoc? token)
   (case (token-typ token)
@@ -110,7 +110,7 @@
 
   (test-case "increase token stream automatically"
              (define lexer (lex "" (open-input-string "12 + 23 * 34")))
-             (define p (parser "" lexer (vector) 0))
+             (define p (parser "" lexer (stream) 0))
              (check-equal? (get-token p 4)
                            (token 'number "34" (pos 1 12))))
 
