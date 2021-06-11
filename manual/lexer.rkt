@@ -111,10 +111,12 @@
                             (- (lexer-offset l) (lexer-start l))))
 
 (define (new-item l ty value)
-  (channel-put (lexer-tokens l)
-               (token ty value
-                      (pos (lexer-name l) (lexer-line l) (- (lexer-column l) (string-length value)))
-                      (pos (lexer-name l) (lexer-line l) (lexer-column l)))))
+  (channel-put
+   (lexer-tokens l)
+   (token ty value
+          ; since token must on the same line, we can rely on length of value
+          (pos (lexer-name l) (lexer-line l) (- (lexer-column l) (string-length value)))
+          (pos (lexer-name l) (lexer-line l) (lexer-column l)))))
 
 (define keyword=>keyword-type
   (make-hash
