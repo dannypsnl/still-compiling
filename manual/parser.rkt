@@ -112,7 +112,7 @@
              (define lexer (lex "" (open-input-string "12 + 23 * 34")))
              (define p (parser "" lexer (stream) 0))
              (check-equal? (get-token p 4)
-                           (token 'number "34" (pos 1 12))))
+                           (token 'number "34" (pos 1 10) (pos 1 12))))
 
   (test-case "right assoc"
              (check-equal? (parse "parsing" (open-input-string "12 ^ 23 ^ 34"))
