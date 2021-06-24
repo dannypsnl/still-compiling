@@ -7,7 +7,7 @@
    (symbol (name))
    (op (op))
    (integer (int)))
-  (Expr (expr cond)
+  (Expr (expr)
         name
         int
         (binary op expr0 expr1)))
