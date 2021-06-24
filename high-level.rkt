@@ -36,4 +36,6 @@
 (define test-p (parse '(binary * 2 (binary * 2 4))))
 ; simplify implies "reduction in strength"
 (simplify-without-catamorphism test-p)
+; '(binary + (binary * 2 4) (binary * 2 4))
 (simplify test-p)
+; '(binary + (binary + 4 4) (binary + 4 4))
