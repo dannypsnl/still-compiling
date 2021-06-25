@@ -24,7 +24,7 @@
   (f : Inst (inst) -> Inst ()
      [(,name ,expr)
       (hash-set! m name (hash-ref m expr expr))
-      inst]
+      `(,name ,(hash-ref m expr expr))]
      [(,name ,op ,expr0 ,expr1)
       (define v0 (hash-ref m expr0))
       (define v1 (hash-ref m expr1))
@@ -47,4 +47,5 @@
           [b 2]
           [c + a b]
           [d - a b]
-          [e + a b])))
+          [e + a b]
+          [f e])))
