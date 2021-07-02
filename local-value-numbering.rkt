@@ -76,7 +76,9 @@
             [(or (list '+ a 0)
                  (list '+ 0 a))
              `(,name ,a)]
-            [(list '- a a) `(,name 0)]
+            [(list '- a a)
+             (hash-set! const-value name 0)
+             `(,name 0)]
             [(list '- a 0) `(,name ,a)]
             [(or (list '* a 2)
                  (list '* 2 a))
@@ -86,10 +88,12 @@
              `(,name ,a)]
             [(or (list '* a 0)
                  (list '* 0 a))
+             (hash-set! const-value name 0)
              `(,name 0)]
             [(list '/ a 1)
              `(,name ,a)]
-            [(list '/ a a) #:when (not (= a 0))
+            [(list '/ a a) #:when (not (eq? a 0))
+                           (hash-set! const-value name 1)
                            `(,name 1)]
             [_ (define new-key (set op v0 v1))
                (if (hash-ref m new-key #f)
@@ -157,11 +161,13 @@
 
   (test-case "algebraic identities"
              (check-equal? (extend-local-value-numbering
-                            (parse '([a - b b]
-                                     [c + 0 a]
+                            (parse '([c + 0 a]
                                      [d - a 0]
-                                     [e * a 2])))
-                           (parse '([a 0]
-                                    [c a]
+                                     [e * a 2]
+                                     [f - b b]
+                                     [g / b b])))
+                           (parse '([c a]
                                     [d a]
-                                    [e + a a])))))
+                                    [e + a a]
+                                    [f 0]
+                                    [g 1])))))
