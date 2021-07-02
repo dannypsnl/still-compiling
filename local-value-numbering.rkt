@@ -72,14 +72,34 @@
                          [(*) (* v0 v1)]
                          [(/) (/ v0 v1)]))
             `(,name ,(hash-ref const-value name)))
-          (let ([new-key (set op v0 v1)])
-            (if (hash-ref m new-key #f)
-                (let ([v (hash-ref m new-key)])
-                  (hash-set! m name v)
-                  `(,name ,v))
-                (begin
-                  (hash-set! m new-key name)
-                  inst))))])
+          (match {list op v0 v1}
+            [(or (list '+ a 0)
+                 (list '+ 0 a))
+             `(,name ,a)]
+            [(list '- a a) `(,name 0)]
+            [(list '- a 0) `(,name ,a)]
+            [(or (list '* a 2)
+                 (list '* 2 a))
+             `(,name + ,a ,a)]
+            [(or (list '* a 1)
+                 (list '* 1 a))
+             `(,name ,a)]
+            [(or (list '* a 0)
+                 (list '* 0 a))
+             `(,name 0)]
+            [(list '/ a 1)
+             `(,name ,a)]
+            [(list '/ a a) #:when (not (= a 0))
+                           `(,name 1)]
+            [_
+             (let ([new-key (set op v0 v1)])
+               (if (hash-ref m new-key #f)
+                   (let ([v (hash-ref m new-key)])
+                     (hash-set! m name v)
+                     `(,name ,v))
+                   (begin
+                     (hash-set! m new-key name)
+                     inst)))]))])
   (p : Prog (prog) -> Prog ()
      [(,inst* ...)
       `(,(map f inst*) ...)])
@@ -134,4 +154,15 @@
                                     [d - a b]
                                     [e c]
                                     [f c]
-                                    [g c])))))
+                                    [g c]))))
+
+  (test-case "algebraic identities"
+             (check-equal? (extend-local-value-numbering
+                            (parse '([a - b b]
+                                     [c + 0 a]
+                                     [d - a 0]
+                                     [e * a 2])))
+                           (parse '([a 0]
+                                    [c a]
+                                    [d a]
+                                    [e + a a])))))
