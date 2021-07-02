@@ -91,15 +91,14 @@
              `(,name ,a)]
             [(list '/ a a) #:when (not (= a 0))
                            `(,name 1)]
-            [_
-             (let ([new-key (set op v0 v1)])
+            [_ (define new-key (set op v0 v1))
                (if (hash-ref m new-key #f)
                    (let ([v (hash-ref m new-key)])
                      (hash-set! m name v)
                      `(,name ,v))
                    (begin
                      (hash-set! m new-key name)
-                     inst)))]))])
+                     inst))]))])
   (p : Prog (prog) -> Prog ()
      [(,inst* ...)
       `(,(map f inst*) ...)])
