@@ -72,22 +72,18 @@
                          [(*) (* v0 v1)]
                          [(/) (/ v0 v1)]))
             `(,name ,(hash-ref const-value name)))
-          (match {list op v0 v1}
-            [(or (list '+ a 0)
-                 (list '+ 0 a))
+          (match (list op v0 v1)
+            [(list-no-order '+ a 0)
              `(,name ,a)]
             [(list '- a a)
              (hash-set! const-value name 0)
              `(,name 0)]
             [(list '- a 0) `(,name ,a)]
-            [(or (list '* a 2)
-                 (list '* 2 a))
+            [(list-no-order '* a 2)
              `(,name + ,a ,a)]
-            [(or (list '* a 1)
-                 (list '* 1 a))
+            [(list-no-order '* a 1)
              `(,name ,a)]
-            [(or (list '* a 0)
-                 (list '* 0 a))
+            [(list-no-order '* a 0)
              (hash-set! const-value name 0)
              `(,name 0)]
             [(list '/ a 1)
