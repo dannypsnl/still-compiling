@@ -1,6 +1,6 @@
 #lang info
 (define collection "still-compiling")
-(define deps '("base" "nanopass"))
+(define deps '("base" "nanopass" "graph"))
 (define build-deps '("scribble-lib" "racket-doc" "rackunit-lib"))
 (define scribblings '(("scribblings/still-compiling.scrbl" ())))
 (define pkg-desc "Description Here")
