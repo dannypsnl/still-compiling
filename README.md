@@ -1,3 +1,4 @@
 # still-compiling
 
-[![Test](https://github.com/dannypsnl/still-compiling/actions/workflows/racket.yml/badge.svg)](https://github.com/dannypsnl/still-compiling/actions/workflows/racket.yml)
+- [local value numbering](https://github.com/dannypsnl/still-compiling/blob/develop/local-value-numbering.rkt)
+- [register allocation](https://github.com/dannypsnl/still-compiling/blob/develop/register-allocate.rkt)
