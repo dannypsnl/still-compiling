@@ -23,12 +23,12 @@
   (definitions
     ; init with 0 since the first instruction is leader
     (define leader* '(0)))
-  (Prog : Program (prog) -> * ()
-        [(p ,inst* ...)
-         (for ([inst inst*]
-               [n (length inst*)])
-           (update-leader inst n))
-         (reverse leader*)])
+  (Program : Program (prog) -> * ()
+           [(p ,inst* ...)
+            (for ([inst inst*]
+                  [n (length inst*)])
+              (update-leader inst n))
+            (reverse leader*)])
   ; * the instruction after jump instruction is leader
   ; * the instruction of jump target is leader
   (update-leader : Inst (inst n) -> * ()
@@ -39,8 +39,7 @@
                   (set! leader* (cons (+ n 1) leader*))
                   (set! leader* (cons int leader*))]
                  [else
-                  (void)])
-  (Prog prog))
+                  (void)]))
 
 ; IR-BB add BasicBlock and convert program from inst* to basic-block*
 (define-language IR-BB
@@ -52,27 +51,26 @@
               (+ (block inst* ...))))
 
 (define-pass simplify : (IR-BB Inst) (inst) -> (IR-BB Inst) ()
-  (simplify-inst : Inst (inst) -> Inst ()
-                 [(assign-op ,name ,op ,expr0 ,expr1)
-                  (match* {op expr0 expr1}
-                    [{'+ x 0} `(assign ,name ,x)]
-                    [{'+ 0 x} `(assign ,name ,x)]
-                    [{'- x 0} `(assign ,name ,x)]
-                    [{'* x 1} `(assign ,name ,x)]
-                    [{'* 1 x} `(assign ,name ,x)]
-                    [{'/ x 1} `(assign ,name ,x)]
-                    ; reduction in strength
-                    [{'^ x 2} `(assign-op ,name * ,x ,x)]
-                    [{'* x 2} `(assign-op ,name + ,x ,x)]
-                    [{'* 2 x} `(assign-op ,name + ,x ,x)]
-                    [{_ _ _} inst])])
-  (simplify-inst inst))
+  (Inst : Inst (inst) -> Inst ()
+        [(assign-op ,name ,op ,expr0 ,expr1)
+         (match* {op expr0 expr1}
+           [{'+ x 0} `(assign ,name ,x)]
+           [{'+ 0 x} `(assign ,name ,x)]
+           [{'- x 0} `(assign ,name ,x)]
+           [{'* x 1} `(assign ,name ,x)]
+           [{'* 1 x} `(assign ,name ,x)]
+           [{'/ x 1} `(assign ,name ,x)]
+           ; reduction in strength
+           [{'^ x 2} `(assign-op ,name * ,x ,x)]
+           [{'* x 2} `(assign-op ,name + ,x ,x)]
+           [{'* 2 x} `(assign-op ,name + ,x ,x)]
+           [{_ _ _} inst])]))
 
 (define-pass IR->IR-BB : IR (prog leader*) -> IR-BB ()
   (definitions
     (define basic-block* '())
     (define cur-block '()))
-  (convert : Program (prog) -> Program ()
+  (Program : Program (prog) -> Program ()
            [(p ,inst* ...)
             (for ([inst inst*]
                   [n (length inst*)])
@@ -86,8 +84,7 @@
             `(p ,(map inst*->block basic-block*) ...)])
   (inst*->block : * (inst*) -> BasicBlock ()
                 `(block ,inst* ...))
-  (inst-IR->BBIR : Inst (inst) -> Inst ())
-  (convert prog))
+  (inst-IR->BBIR : Inst (inst) -> Inst ()))
 
 (define-pass liveness-map : IR-BB (bb) -> * ()
   (basic-block : BasicBlock (bb) -> * ()

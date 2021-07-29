@@ -36,10 +36,9 @@
           (begin
             (hash-set! m new-key name)
             inst))])
-  (p : Prog (prog) -> Prog ()
-     [(,inst* ...)
-      `(,(map f inst*) ...)])
-  (p prog))
+  (Prog : Prog (prog) -> Prog ()
+        [(,inst* ...)
+         `(,(map f inst*) ...)]))
 
 (define-pass extend-local-value-numbering : (IR Prog) (prog) -> (IR Prog) ()
   (definitions
@@ -99,10 +98,9 @@
                    (begin
                      (hash-set! m new-key name)
                      inst))]))])
-  (p : Prog (prog) -> Prog ()
-     [(,inst* ...)
-      `(,(map f inst*) ...)])
-  (p prog))
+  (Prog : Prog (prog) -> Prog ()
+        [(,inst* ...)
+         `(,(map f inst*) ...)]))
 
 (module+ test
   (require rackunit)

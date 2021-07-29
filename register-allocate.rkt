@@ -39,10 +39,9 @@
      [(ret ,expr)
       (add-live! expr)
       (set->list live-set)])
-  (p : Prog (prog) -> * ()
-     [(,inst* ...)
-      (map f (reverse inst*))])
-  (p prog))
+  (Prog : Prog (prog) -> * ()
+        [(,inst* ...)
+         (map f (reverse inst*))]))
 
 (define (conflict-graph code)
   (define live-sets (live-set* code))
@@ -102,10 +101,9 @@
      [(ret ,expr)
       (list `(MOV r-ret ,(to-reg expr))
             `(RET))])
-  (p : Prog (prog) -> Prog ()
-     [(,inst* ...)
-      `(,(flatten (map f inst*)) ...)])
-  (p prog))
+  (Prog : Prog (prog) -> Prog ()
+        [(,inst* ...)
+         `(,(flatten (map f inst*)) ...)]))
 
 (module+ test
   (require rackunit)
