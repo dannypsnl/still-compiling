@@ -58,9 +58,11 @@
       [_ (void)]))
   g)
 
+; armv7 like general register
 (define reg-list '(r1 r2 r3 r4 r5 r6 r7 r8 r9 r10))
 (define (reg? v)
-  (member v (cons 'r-ret reg-list)))
+  ; r0 stands for return register
+  (member v (cons 'r0 reg-list)))
 (define-language Asm
   (entry Prog)
   (terminals
@@ -99,7 +101,7 @@
         [(*) `(MUL ,(to-reg name) ,(to-reg expr0) ,(to-reg expr1))]
         [(/) `(DIV ,(to-reg name) ,(to-reg expr0) ,(to-reg expr1))])]
      [(ret ,expr)
-      (list `(MOV r-ret ,(to-reg expr))
+      (list `(MOV r0 ,(to-reg expr))
             `(RET))])
   (Prog : Prog (prog) -> Prog ()
         [(,inst* ...)
@@ -128,5 +130,5 @@
                              (MUL r2 r2 r3)
                              (DIV r1 r1 r2)
                              (MOV r1 r1)
-                             (MOV r-ret r1)
+                             (MOV r0 r1)
                              (RET)))))
