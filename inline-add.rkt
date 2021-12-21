@@ -13,9 +13,17 @@
 (define-pass inline-add : L (e) -> L ()
   (p : Expr (e) -> Expr ()
      [(+ ,[e] ...)
-      (if (andmap number? e)
-          `,(apply + e)
-          `(+ ,e ...))]))
+      (define number?-e (filter number? e))
+      (define non-number?-e (filter (compose not number?) e))
+      (cond
+        [(and (> (length number?-e) 0)
+              (> (length non-number?-e) 0))
+         `(+ ,(apply + number?-e) ,non-number?-e ...)]
+        [(> (length number?-e) 0)
+         `,(apply + number?-e)]
+        [else
+         `(+ ,e ...)])]))
 
 (define-parser parse L)
 (inline-add (parse '(+ (+ 1 2) a)))
+(inline-add (parse '(+ 2 a 3)))
