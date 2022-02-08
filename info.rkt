@@ -3,7 +3,10 @@
 (define deps '("base"
                "nanopass"
                "graph"
-               "megaparsack-lib"))
+               ; combinator
+               "megaparsack-lib"
+               "megaparsack-parser-tools"
+               "functional-lib"))
 (define build-deps '("scribble-lib" "racket-doc" "rackunit-lib"))
 (define scribblings '(("scribblings/still-compiling.scrbl" ())))
 (define pkg-desc "Description Here")
