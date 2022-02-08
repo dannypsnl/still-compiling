@@ -2,7 +2,8 @@
 
 ### Parsing
 
-- [manual parser](https://github.com/dannypsnl/still-compiling/tree/develop/manual)
+- [combinator: megaparsack](https://github.com/dannypsnl/still-compiling/tree/develop/parser/combinator)
+- [manual parser](https://github.com/dannypsnl/still-compiling/tree/develop/parser/manual)
 
 ### Optimization
 
