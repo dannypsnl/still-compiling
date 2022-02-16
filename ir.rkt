@@ -147,8 +147,7 @@
         [(p ,bb* ...)
          (define inst=>liveness (map liveness-map bb*))
          (for/list ([basic-block bb*])
-           (basic-block->DAG basic-block))])
-  (Prog prog))
+           (basic-block->DAG basic-block))]))
 
 (define (all prog)
   (define-parser parse IR)
