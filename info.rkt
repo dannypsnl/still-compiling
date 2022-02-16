@@ -1,9 +1,12 @@
 #lang info
 (define collection "still-compiling")
 (define deps '("base"
+               ; lang extension
+               "curly-fn-lib"
+               ; compiler
                "nanopass"
                "graph"
-               ; combinator
+               ; parser combinator
                "megaparsack-lib"
                "megaparsack-parser-tools"
                "functional-lib"))
