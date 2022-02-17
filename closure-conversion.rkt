@@ -47,7 +47,7 @@
 (define-pass explicit-prim-call : L2 (e) -> L3 ()
   (Expr : Expr (e) -> Expr ()
         [(,[e] ,[e*] ...)
-         (if (member e '(+ - * / vector vector-ref))
+         (if (member e '(+ - * / cons car cdr vector vector-ref))
              `(prim ,e ,e* ...)
              `(,e ,e* ...))]))
 
@@ -66,12 +66,7 @@
         [else (set)]))
 
 (define-language L4
-  (extends L3)
-  (Expr (e body)
-        (+ (lifted-lambda x (x* ...) e)
-           ; make-closure stores function and environment
-           (make-closure e0 e1)
-           (make-env x ...))))
+  (extends L3))
 
 (define-pass replace-free : L4 (e $env fvs) -> L4 ()
   (Expr : Expr (e) -> Expr ()
@@ -85,16 +80,16 @@
          (define fvs (freevars e))
          ; convert free-vars in body by using reference to $env
          (if (set-empty? fvs)
-             `(lambda (,x* ...) ,body)
-             `(make-closure (lifted-lambda ,$lifted-function-name
-                                           (,x* ... ,$env)
-                                           ,(replace-free body $env fvs))
-                            (prim vector ,(set->list fvs) ...)))]))
+             `(prim cons (lambda (,x* ... ,$env) ,body)
+                    (prim vector))
+             `(prim cons (lambda (,x* ... ,$env)
+                           ,(replace-free body $env fvs))
+                    (prim vector ,(set->list fvs) ...)))]))
 
 (define-pass closure-call : L4 (e) -> L4 ()
   (Expr : Expr (e) -> Expr ()
         [(,[e] ,[e*] ...)
-         `((closure-l ,e) ,e* ... (closure-e ,e))]))
+         `((prim car ,e) ,e* ... (prim cdr  ,e))]))
 
 (define-parser parse-L0 L0)
 (define-parser parse-L4 L4)
@@ -119,7 +114,6 @@
 (define ev (make-evaluator 'racket
                            '(require syntax/parse/define)
                            '(struct closure (l e))
-                           '(define (make-closure l e) (closure l e))
                            '(define (prim f . a) (apply f a))
                            '(define-syntax-parser lifted-lambda
                               [(_ name (x ...) b ...) #'(lambda (x ...) b ...)])
