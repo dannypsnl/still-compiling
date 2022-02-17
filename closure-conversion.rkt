@@ -112,10 +112,5 @@
 
 (all target)
 (define ev (make-evaluator 'racket
-                           '(require syntax/parse/define)
-                           '(struct closure (l e))
-                           '(define (prim f . a) (apply f a))
-                           '(define-syntax-parser lifted-lambda
-                              [(_ name (x ...) b ...) #'(lambda (x ...) b ...)])
-                           ))
+                           '(define (prim f . a) (apply f a))))
 (ev (all target))
