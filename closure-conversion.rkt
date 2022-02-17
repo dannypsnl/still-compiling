@@ -89,12 +89,18 @@
 (define-pass closure-call : L4 (e) -> L4 ()
   (Expr : Expr (e) -> Expr ()
         [(,[e] ,[e*] ...)
-         `((prim car ,e) ,e* ... (prim cdr  ,e))]))
+         `((prim car ,e) ,e* ... (prim cdr ,e))]))
+
+(define-pass unprim : L4 (e) -> L4 ()
+  (Expr : Expr (e) -> Expr ()
+        [(prim ,[e] ,[e*] ...)
+         `(,e ,e* ...)]))
 
 (define-parser parse-L0 L0)
 (define-parser parse-L4 L4)
 (define (all e)
   ((compose unparse-L4
+            unprim
             closure-call
             closure-conversion
             explicit-prim-call
@@ -111,6 +117,5 @@
      ((make-adder 2) 3)))
 
 (all target)
-(define ev (make-evaluator 'racket
-                           '(define (prim f . a) (apply f a))))
+(define ev (make-evaluator 'racket))
 (ev (all target))
