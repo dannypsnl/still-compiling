@@ -99,7 +99,13 @@
 (define-parser parse-L0 L0)
 (define-parser parse-L2 L2)
 (define (all e)
-  ((compose unparse-L2
+  ((compose (lambda (e)
+              (displayln "gen code:")
+              (pretty-display e)
+              (define ev (make-evaluator 'racket))
+              (displayln "result:")
+              (ev e))
+            unparse-L2
             closure-call
             closure-conversion
             begin-wrapping
@@ -107,15 +113,8 @@
             parse-L0)
    e))
 
-(define target
-  '(begin
-     (define (make-adder n)
-       (lambda (m)
-         (+ m n)))
-     ((make-adder 2) 3)))
-
-(displayln "gen code:")
-(pretty-display (all target))
-(define ev (make-evaluator 'racket))
-(displayln "result:")
-(ev (all target))
+(all '(begin
+        (define (make-adder n)
+          (lambda (m)
+            (+ m n)))
+        ((make-adder 2) 3)))
