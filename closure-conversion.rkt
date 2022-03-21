@@ -59,6 +59,10 @@
         [(lambda (,x* ...) ,e)
          (set-subtract (freevars e)
                        (list->set x*))]
+        [(let ([,x* ,e*] ...)
+           ,e)
+         (set-subtract (freevars e)
+                       (list->set x*))]
         [(begin ,body* ... ,body)
          (apply set-union (map freevars (cons body body*)))]
         [(,e ,e* ...)
