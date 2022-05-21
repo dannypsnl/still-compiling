@@ -60,7 +60,7 @@
   (Expr : Expr (e) -> Expr ()
         [(lambda (,x* ...) ,[body*] ... ,[body])
          `(lambda (,x* ...) ,(wrap body* body))]
-        [(let ([,x* ,e*] ...) ,body* ... ,body)
+        [(let ([,x* ,e*] ...) ,[body*] ... ,[body])
          `(let ([,x* ,e*] ...) ,(wrap body* body))]))
 
 (define-pass freevars : L2 (e) -> * ()
