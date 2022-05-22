@@ -22,7 +22,6 @@
         x
         n
         p
-        (vector e* ...)
         (begin body* ... body)
         (lambda (x* ...) body* ... body)
         (let ([x* e*] ...)
@@ -60,7 +59,7 @@
   (Expr : Expr (e) -> Expr ()
         [(lambda (,x* ...) ,[body*] ... ,[body])
          `(lambda (,x* ...) ,(wrap body* body))]
-        [(let ([,x* ,e*] ...) ,[body*] ... ,[body])
+        [(let ([,x* ,[e*]] ...) ,[body*] ... ,[body])
          `(let ([,x* ,e*] ...) ,(wrap body* body))]))
 
 (define-pass freevars : L2 (e) -> * ()
@@ -69,7 +68,8 @@
         [(lambda (,x* ...) ,body)
          (set-subtract (freevars body) (list->set x*))]
         [(let ([,x* ,e*] ...) ,body)
-         (set-subtract (freevars body) (list->set x*))]
+         (set-subtract (apply set-union (map freevars (cons body e*)))
+                       (list->set x*))]
         [(begin ,body* ... ,body) (apply set-union (map freevars (cons body body*)))]
         [(,p ,e* ...) (apply set-union (map freevars e*))]
         [(,e ,e* ...) (apply set-union (map freevars (cons e e*)))]
@@ -98,9 +98,8 @@
         [(,p ,[e*] ...)
          `(,p ,e* ...)]
         [(,[e] ,[e*] ...)
-         (define clos (gensym 'clos))
-         `(let ([,clos ,e])
-            ((car ,clos) ,e* ... (cdr ,clos)))]))
+         `(let ([clos ,e])
+            ((car clos) ,e* ... (cdr clos)))]))
 
 (define (all e)
   (define-parser parse-L0 L0)
