@@ -7,7 +7,7 @@
 
 ### Encoding
 
-- [closure conversion](tree/blob/develop/closure-conversion.rkt)
+- [closure conversion](closure-conversion.rkt)
 
 ### Optimization
 
