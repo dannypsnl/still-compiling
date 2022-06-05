@@ -2,8 +2,8 @@
 
 ### Parsing
 
-- [combinator: megaparsack](https://github.com/dannypsnl/still-compiling/tree/develop/parser/combinator)
-- [manual parser](https://github.com/dannypsnl/still-compiling/tree/develop/parser/manual)
+- [combinator: megaparsack](parser/combinator)
+- [manual parser](parser/manual)
 
 ### Encoding
 
@@ -11,5 +11,5 @@
 
 ### Optimization
 
-- [local value numbering](https://github.com/dannypsnl/still-compiling/blob/develop/local-value-numbering.rkt)
-- [register allocation](https://github.com/dannypsnl/still-compiling/blob/develop/register-allocate.rkt)
+- [local value numbering](local-value-numbering.rkt)
+- [register allocation](register-allocate.rkt)
