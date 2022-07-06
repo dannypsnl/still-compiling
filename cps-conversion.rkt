@@ -1,16 +1,19 @@
 #lang curly-fn nanopass
 
 (define (primitive? x)
-  (member x '(+ - * /)))
+  (member x '(+ - * /
+                = <
+                display displayln)))
 (define-language CL
   (terminals
    (primitive (p))
    (symbol (x))
+   (boolean (b))
    (number (n)))
   (Expr (e c body)
         (with-cont e c)
-        x ; var
-        n ; int
+        x
+        n b
         p ; primitive
         (lambda (x* ...) body) ; lambda
         (let ([x* e*] ...) body)
@@ -28,12 +31,13 @@
 
 (define-pass wrap-cps-conversion : CL (e) -> CL ()
   (T : Expr (e) -> Expr ()
-     [else `(with-cont ,e (lambda (r) (%halt r)))]))
+     [else `(with-cont ,e %halt%)]))
 
 (define-pass cps-conversion : CL (e) -> CL ()
   (T : Expr (e) -> Expr ()
      [(with-cont ,x ,c) `(,c ,x)]
      [(with-cont ,n ,c) `(,c ,n)]
+     [(with-cont ,b ,c) `(,c ,b)]
      [(with-cont (set! ,x ,e) ,c)
       `(with-cont ,e
          (lambda (r1)
@@ -50,8 +54,9 @@
          (lambda (r1)
            (with-cont (begin ,(cdr e*) ...) ,c)))]
      [(with-cont (lambda (,x* ...) ,body) ,c)
-      `(,c (lambda (,x* ... k)
-             (with-cont ,body k)))]
+      (define $k (gensym 'k.))
+      `(,c (lambda (,x* ... ,$k)
+             (with-cont ,body ,$k)))]
      [(with-cont (,p ,e* ...) ,c)
       (define r* (map (λ (e) (gensym 'r.)) e*))
       (foldr (λ (e r acc)
@@ -65,7 +70,6 @@
       (define r (gensym 'r.))
       (define r* (map (λ (_) (gensym 'r.)) e*))
       (foldr (λ (e r acc)
-               (println acc)
                `(with-cont ,e
                   (lambda (,r)
                     ,acc)))
@@ -99,15 +103,21 @@
                    wrap-cps-conversion
                    remove-let
                    parse-CL))
-(define (%halt x) x)
+(define (%halt% x) x)
 
 (T '1)
 (T 'a)
+(T '(if #t 1 2))
+(T '(+ 5
+       (call/cc
+        (lambda (cont)
+          (cont 2)))))
 (T '(let ([mult (lambda (a b) (* a b))])
       (let ([square (lambda (x) (mult x x))])
         (+ (square 10) 1))))
 
 (define call/cc
   (lambda (f k)
-    (f k (lambda (result dummy-k)
-           (k result)))))
+    (f (lambda (result dummy-k)
+         (k result))
+       k)))
