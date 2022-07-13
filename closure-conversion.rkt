@@ -68,8 +68,9 @@
         [(lambda (,x* ...) ,body)
          (set-subtract (freevars body) (list->set x*))]
         [(let ([,x* ,e*] ...) ,body)
-         (set-subtract (apply set-union (map freevars (cons body e*)))
-                       (list->set x*))]
+         (apply set-union
+                (cons (set-subtract (freevars body) (list->set x*))
+                      (map freevars e*)))]
         [(begin ,body* ... ,body) (apply set-union (map freevars (cons body body*)))]
         [(,p ,e* ...) (apply set-union (map freevars e*))]
         [(,e ,e* ...) (apply set-union (map freevars (cons e e*)))]
