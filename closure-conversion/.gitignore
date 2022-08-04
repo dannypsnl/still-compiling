@@ -1,0 +1,6 @@
+zig-cache/
+compiled/
+*.ll
+*.s
+*.o
+*.out

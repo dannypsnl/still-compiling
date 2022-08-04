@@ -1,4 +1,6 @@
 #lang racket
+(provide L2
+         transform)
 (require nanopass
          racket/sandbox)
 
@@ -100,34 +102,39 @@
              `(let ([clos ,e])
                 ((car clos) ,e* ... (cdr clos))))]))
 
-(define (all e)
+(define (transform e)
   (define-parser parse-L0 L0)
-  (define-parser parse-L1 L1)
-  (define-parser parse-L2 L2)
-
-  (define (!debug-L1 e)
-    (println (unparse-L1 e))
-    e)
-  (define (!debug-L2 e)
-    (println (unparse-L2 e))
-    e)
-
-  ((compose (lambda (e)
-              (displayln "gen code:")
-              (pretty-display e)
-              (define ev (make-evaluator 'racket))
-              (displayln "result:")
-              (ev e))
-            unparse-L2
-            closure-call
+  ((compose closure-call
             closure-conversion
             begin-wrapping
             remove-define-procedure-form
             parse-L0)
    e))
 
-(all '(begin
-        (define (make-adder n)
-          (lambda (m)
-            (+ m n)))
-        ((make-adder 2) 3)))
+(module+ main
+  (define (all e)
+    (define-parser parse-L1 L1)
+    (define-parser parse-L2 L2)
+
+    (define (!debug-L1 e)
+      (println (unparse-L1 e))
+      e)
+    (define (!debug-L2 e)
+      (println (unparse-L2 e))
+      e)
+
+    ((compose (lambda (e)
+                (displayln "gen code:")
+                (pretty-display e)
+                (define ev (make-evaluator 'racket))
+                (displayln "result:")
+                (ev e))
+              unparse-L2
+              transform)
+     e))
+
+  (all '(begin
+          (define (make-adder n)
+            (lambda (m)
+              (+ m n)))
+          ((make-adder 2) 3))))
