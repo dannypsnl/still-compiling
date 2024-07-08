@@ -1,5 +1,8 @@
 #lang nanopass
+#| NOTE
 
+   This file only do single block liveset analysis, for k+1 liveset, one need to make a block relation graph.
+|#
 (require graph)
 
 (define (op? v)
