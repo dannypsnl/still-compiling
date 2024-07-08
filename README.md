@@ -7,7 +7,7 @@
 
 ### Encoding
 
-- [closure conversion](closure-conversion.rkt)
+- [closure conversion](closure-conversion)
 - [cps conversion](cps-conversion.rkt), ref: http://churchturing.org/y/90-min-scc.pdf
 
 ### Optimization
