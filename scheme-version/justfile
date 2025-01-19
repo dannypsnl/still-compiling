@@ -1,0 +1,8 @@
+default:
+  just --choose
+
+load:
+  scheme --libdirs ../nanopass-framework-scheme boolean.ss
+
+run:
+  scheme --libdirs ../nanopass-framework-scheme:. --program boolean-run.ss
