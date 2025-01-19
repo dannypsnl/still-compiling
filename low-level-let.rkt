@@ -29,7 +29,6 @@
         [,x x]
         [,c c]))
 
-
 (with-output-language (L0 Expr)
   (remove-let
    `(let (x 1)
