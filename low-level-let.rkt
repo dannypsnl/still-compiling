@@ -25,9 +25,7 @@
            ,body)
          `(begin
             (set! ,x ,e)
-            ,body)]
-        [,x x]
-        [,c c]))
+            ,body)]))
 
 (define-pass explicit-control : L1 (e) -> L1 ()
   (Expr : Expr (e) -> Expr ()
