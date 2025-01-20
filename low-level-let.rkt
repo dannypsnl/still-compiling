@@ -8,23 +8,24 @@
    (constant (c))
    (symbol (x)))
   (Expr (e body)
-        (let (x e) body)
+        (let ([x e] ...) body)
         x
         c))
 
 (define-language L1
   (extends L0)
   (Expr (e)
-        (- (let (x e) body))
+        (- (let ([x e] ...) body))
         (+ (begin e* ... e)
            (set! x e))))
 
 (define-pass low-level-let : L0 (e) -> L1 ()
   (Expr : Expr (e) -> Expr ()
-        [(let (,x ,[e])
+        [(let ([,x ,[e]] ...)
            ,body)
          `(begin
             (set! ,x ,e)
+            ...
             ,body)]))
 
 (define-pass explicit-control : L1 (e) -> L1 ()
@@ -41,5 +42,5 @@
     low-level-let))
 (with-output-language (L0 Expr)
   (passes
-   `(let (x (let (y 1) y))
+   `(let ([x (let ([y 1]) y)])
       x)))
