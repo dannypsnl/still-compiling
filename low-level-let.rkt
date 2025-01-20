@@ -19,7 +19,7 @@
         (+ (begin e* ... e)
            (set! x e))))
 
-(define-pass remove-let : L0 (e) -> L1 ()
+(define-pass low-level-let : L0 (e) -> L1 ()
   (Expr : Expr (e) -> Expr ()
         [(let (,x ,[e])
            ,body)
@@ -29,7 +29,19 @@
         [,x x]
         [,c c]))
 
+(define-pass explicit-control : L1 (e) -> L1 ()
+  (Expr : Expr (e) -> Expr ()
+        [(begin ,[e*] ... ,[e])
+         `(begin ,e* ... ,e)]
+        [(set! ,x (begin ,[e*] ... ,[e]))
+          `(begin ,e* ...
+            (set! ,x ,e))]))
+
+(define passes
+  (compose
+    explicit-control
+    low-level-let))
 (with-output-language (L0 Expr)
-  (remove-let
-   `(let (x 1)
+  (passes
+   `(let (x (let (y 1) y))
       x)))
