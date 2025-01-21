@@ -70,7 +70,7 @@
         (match (load-macro #'x)
           [#f (find-binding (stx->bind-id #'x))]
           [(cons scopes macro-stx)
-            (parameterize ([current-scopes-set scopes])
+            (parameterize ([current-scopes-set (set-add scopes (gensym 'intro))])
               (expand-expr macro-stx))])]
       [else (error 'syntax "unknown expression ~a" stx)])))
 
