@@ -30,10 +30,25 @@
              #:when (subset? (bind-id-scopes-set b) (bind-id-scopes-set x)))
     b))
 
+#| simple macro concept
+1. we store a pair that (scopes-set stx)
+2. when expand we replay the scopes-set for stx expansion
+3. therefore, the output expression will reference to current identifier
+|#
+(define macros (make-hash))
+(define (store id-stx stx)
+  (hash-set! macros (syntax->datum id-stx)
+    (cons (current-scopes-set) stx)))
+(define (load-macro id-stx)
+  (hash-ref macros (syntax->datum id-stx) #f))
+
 (define (expand-expr stx)
   (with-output-language (L0 Expr)
     (syntax-parse stx
-      #:datum-literals (let lambda)
+      #:datum-literals (let lambda let-syntax syntax)
+      [(let-syntax [m:id (syntax e)] body)
+        (store #'m #'e)
+        (expand-expr #'body)]
       [(lambda (x:id ...) body* ... body)
         (parameterize ([current-scopes-set (set-add (current-scopes-set) (gensym 'lam))])
           (define xs (ids #'(x ...)))
@@ -51,7 +66,12 @@
           `(let ([,xs ,es] ...)
             ,b* ... ,b))]
       [n:number (syntax->datum #'n)]
-      [x:id (find-binding (stx->bind-id #'x))]
+      [x:id
+        (match (load-macro #'x)
+          [#f (find-binding (stx->bind-id #'x))]
+          [(cons scopes macro-stx)
+            (parameterize ([current-scopes-set scopes])
+              (expand-expr macro-stx))])]
       [else (error 'syntax "unknown expression ~a" stx)])))
 
 (define (ids stx)
@@ -67,4 +87,9 @@
   (expand-expr #'(let ([x 1])
                   (let ([x 2])
                     x)))
+
+  (expand-expr #'(let ([x 1])
+                  (let-syntax [m #'x]
+                    (let ([x 2])
+                      m))))
   )
