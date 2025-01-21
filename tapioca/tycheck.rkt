@@ -83,7 +83,12 @@
       [(define ,loc ,x ,e)
         (check env e (lookup env x))]
       [(define ,loc (,x0 ,x1 ...) ,e)
-        (define lam (with-output-language (Tapioca Expr)
-          `(lambda ,loc (,x1 ...) ,e)))
-        (check env lam (lookup env x0))]))
+        (nanopass-case (Tapioca Type) (lookup env x0)
+          [(-> ,loc1 (,t0 ...) ,t1)
+            (define env- (newenv env))
+            (for ([x x1]
+                  [t t0])
+              (insert env- x t))
+            (check env- e t1)])
+        ]))
   )
