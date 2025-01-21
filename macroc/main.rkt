@@ -24,7 +24,7 @@
 
 (define f (open-output-file "_build/out.c"
             #:mode 'text
-            #:exists 'truncate))
+            #:exists 'truncate/replace))
 (parameterize ([current-output-port f])
   (func main () (returns int)
     (return 0))
