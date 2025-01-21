@@ -57,10 +57,10 @@
           (define b (expand-expr #'body))
           `(lambda (,xs ...) ,b* ... ,b))]
       [(let ([x:id e] ...) body* ... body)
+        (define es (map expand-expr (syntax->list #'(e ...))))
         (parameterize ([current-scopes-set (set-add (current-scopes-set) (gensym 'let))])
           (define xs (ids #'(x ...)))
           (for ([x xs]) (insert-renaming x))
-          (define es (map expand-expr (syntax->list #'(e ...))))
           (define b* (map expand-expr (syntax->list #'(body* ...))))
           (define b (expand-expr #'body))
           `(let ([,xs ,es] ...)
