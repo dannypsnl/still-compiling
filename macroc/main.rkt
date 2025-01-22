@@ -39,8 +39,8 @@
    (for ([c-def (attribute form.to-c)])
      (display c-def out))
    (close-output-port out)
-   (system "clang -c _build/tmp.c")
-   (system "clang -dynamiclib tmp.o -o libtmp.dylib")
+   (system "clang -c _build/tmp.c -o _build/tmp.o")
+   (system "clang -dynamiclib _build/tmp.o -o _build/libtmp.dylib")
    #'(module c racket
        (provide define-tmp)
        (require ffi/unsafe
