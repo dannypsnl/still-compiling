@@ -13,6 +13,8 @@
   (define-syntax-class c/expr
     (pattern n:number #:attr to-c (format "~a" (syntax->datum #'n)))
     (pattern x:id #:attr to-c (format "~a" (syntax->datum #'x)))
+    (pattern (* a:c/expr ...)
+      #:attr to-c (string-join (attribute a.to-c) "*"))
     (pattern (+ a:c/expr ...)
       #:attr to-c (string-join (attribute a.to-c) "+")))
 
@@ -55,13 +57,13 @@
        (provide form.name ...))])
 
 (define-c/calc
-  (define (add_double_in_C a b) : double double -> double =>
-    (+ a b 3))
+  (define (mul_double_in_C a b) : double double -> double =>
+    (* a b))
 
   (define (add_i64_in_C a b) : int int -> int =>
     (+ a a b b))
   )
 
 (require 'c)
-(println (add_double_in_C 1. 2.))
+(println (mul_double_in_C 3.1 8.2))
 (println (add_i64_in_C 1 2))
