@@ -33,6 +33,7 @@
 
 (define-syntax-parser define-c/calc
   [(_ form:c/func ...+)
+   (system "mkdir -p _build")
    (define filename "_build/tmp.c")
    (define out (open-output-file filename #:mode 'text #:exists 'replace))
    (displayln "#define EXPORT __attribute__((visibility(\"default\")))" out)
@@ -45,7 +46,7 @@
        (provide define-tmp)
        (require ffi/unsafe
                 ffi/unsafe/define)
-       (define-ffi-definer define-tmp (ffi-lib "libtmp"))
+       (define-ffi-definer define-tmp (ffi-lib "_build/libtmp"))
 
        (define-tmp form.name form.ffi-type)
        ...
