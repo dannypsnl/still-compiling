@@ -50,17 +50,17 @@
         (store #'m #'e)
         (expand-expr #'body)]
       [(lambda (x:id ...) body* ... body)
-        (define xs (ids #'(x ...)))
-        (for ([x xs]) (insert-renaming x))
         (parameterize ([current-scopes-set (set-add (current-scopes-set) (gensym 'lam))])
+          (define xs (ids #'(x ...)))
+          (for ([x xs]) (insert-renaming x))
           (define b* (map expand-expr (syntax->list #'(body* ...))))
           (define b (expand-expr #'body))
           `(lambda (,xs ...) ,b* ... ,b))]
       [(let ([x:id e] ...) body* ... body)
         (define es (map expand-expr (syntax->list #'(e ...))))
-        (define xs (ids #'(x ...)))
-        (for ([x xs]) (insert-renaming x))
         (parameterize ([current-scopes-set (set-add (current-scopes-set) (gensym 'let))])
+          (define xs (ids #'(x ...)))
+          (for ([x xs]) (insert-renaming x))
           (define b* (map expand-expr (syntax->list #'(body* ...))))
           (define b (expand-expr #'body))
           `(let ([,xs ,es] ...)
@@ -68,7 +68,7 @@
       [n:number (syntax->datum #'n)]
       [x:id
         (match (load-macro #'x)
-          [#f (find-binding (stx->bind-id #'x))]
+          [#f (stx->bind-id #'x)]
           [(cons scopes macro-stx)
             (parameterize ([current-scopes-set (set-add scopes (gensym 'intro))])
               (expand-expr macro-stx))])]
@@ -79,16 +79,25 @@
 (define (stx->bind-id stx)
   (bind-id (syntax->datum stx) (current-scopes-set)))
 
+(trace-define-pass renaming : (L0 Expr) (e) -> (L0 Expr) ()
+  (Expr : Expr (e) -> Expr ()
+    [,x (find-binding x)]))
+
 (module+ main
-  (expand-expr #'(let ([x 1])
+  (define passes
+    (compose
+      renaming
+      expand-expr))
+
+  (passes #'(let ([x 1])
                   (let ([y 2])
                     x)))
 
-  (expand-expr #'(let ([x 1])
+  (passes #'(let ([x 1])
                   (let ([x 2])
                     x)))
 
-  (expand-expr #'(let ([x 1])
+  (passes #'(let ([x 1])
                   (let-syntax [m #'x]
                     (let ([x 2])
                       m))))
