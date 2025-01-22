@@ -7,8 +7,9 @@
 
 (begin-for-syntax
   (define-syntax-class c/ty
-    #:datum-literals (double)
-    (pattern double #:attr ffi-type #'_double))
+    #:datum-literals (double int)
+    (pattern double #:attr ffi-type #'_double)
+    (pattern int #:attr ffi-type #'_int64))
   (define-syntax-class c/expr
     (pattern n:number #:attr to-c (format "~a" (syntax->datum #'n)))
     (pattern x:id #:attr to-c (format "~a" (syntax->datum #'x)))
@@ -55,7 +56,12 @@
 
 (define-c/calc
   (define (add_double_in_C a b) : double double -> double =>
-    (+ a b 3)))
+    (+ a b 3))
+
+  (define (add_i64_in_C a b) : int int -> int =>
+    (+ a a b b))
+  )
 
 (require 'c)
 (println (add_double_in_C 1. 2.))
+(println (add_i64_in_C 1 2))
