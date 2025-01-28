@@ -1,9 +1,12 @@
 #pragma once
 #include <stdio.h>
+#include <stdbool.h>
 
 typedef enum
 {
-  FIXNUM_TAG
+  INT_TAG,
+  CHAR_TAG,
+  BOOL_TAG,
 } scm_tag;
 
 typedef struct
@@ -12,8 +15,12 @@ typedef struct
   union Val
   {
     int i;
+    char c;
+    bool b;
   } val;
 } scm_t;
 
 scm_t make_int(int x);
+scm_t make_bool(bool x);
+scm_t make_char(char x);
 void show(scm_t val);

@@ -13,16 +13,45 @@ int main(int argc, const char **argv)
 scm_t make_int(int x)
 {
   scm_t v = {
-      .tag = FIXNUM_TAG,
+      .tag = INT_TAG,
+      .val = x};
+  return v;
+}
+
+scm_t make_bool(bool x)
+{
+  scm_t v = {
+      .tag = BOOL_TAG,
+      .val = x};
+  return v;
+}
+scm_t make_char(char x)
+{
+  scm_t v = {
+      .tag = CHAR_TAG,
       .val = x};
   return v;
 }
 
 void show(scm_t val)
 {
-  if (val.tag == FIXNUM_TAG)
+  if (val.tag == INT_TAG)
   {
-    // integer
     printf("%d", val.val.i);
+  }
+  else if (val.tag == CHAR_TAG)
+  {
+    printf("#\\%c", val.val.c);
+  }
+  else if (val.tag == BOOL_TAG)
+  {
+    if (val.val.b)
+    {
+      printf("#t");
+    }
+    else
+    {
+      printf("#f");
+    }
   }
 }
