@@ -23,4 +23,5 @@ typedef struct
 scm_t make_int(int x);
 scm_t make_bool(bool x);
 scm_t make_char(char x);
+bool to_bool(scm_t x);
 void show(scm_t val);

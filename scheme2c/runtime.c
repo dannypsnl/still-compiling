@@ -33,6 +33,18 @@ scm_t make_char(char x)
   return v;
 }
 
+bool to_bool(scm_t val)
+{
+  if (val.tag == BOOL_TAG)
+  {
+    return val.val.b;
+  }
+  else
+  {
+    return false;
+  }
+}
+
 void show(scm_t val)
 {
   if (val.tag == INT_TAG)

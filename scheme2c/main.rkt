@@ -33,13 +33,24 @@
     (+ (set! x e))))
 (define-pass low-level-let : L0 (e) -> L1 ()
   (E : Expr (e) -> Expr ()
-    [(let ([,x* ,e*] ...) ,body* ... ,body)
+    [(let ([,x* ,[e*]] ...) ,body* ... ,body)
       (define binds
         (for/list ([x x*] [e e*])
           `(set! ,x ,e)))
       `(begin
         ,binds ...
         ,body* ... ,body)]))
+
+(define-pass remove-complex-operands : L1 (e) -> L1 ()
+  (E : Expr (e) -> Expr ()
+    [(set! ,x (begin ,[e*] ... ,[e]))
+      `(begin ,e* ... (set! ,x ,e))]
+    [(set! ,x (if ,[e0] ,[e1] ,[e2]))
+      `(if ,e0
+        (set! ,x ,e1)
+        (set! ,x ,e2))]
+  )
+  (E e))
 
 (define-language Final
   (extends L1)
@@ -77,6 +88,14 @@
       (printf "~a = " x)
       (E e)
       (printf ";\n")]
+    [(if ,e0 ,e1 ,e2)
+      (printf "if (to_bool(")
+      (E e0)
+      (printf ")) {")
+      (E e1)
+      (printf "} else {")
+      (E e2)
+      (printf "}")]
     [else (void)])
   (E e))
 
@@ -89,13 +108,17 @@
       2c
       proper-return
       wrap-return
+      remove-complex-operands
       low-level-let
       parse-scm) form))
   (printf "scm_t ")
-  (for ([x (in-set used-variables)])
-    (printf " ~a " x))
+  (for ([x (in-set used-variables)]
+        [k (in-naturals)])
+    (if (= k 0)
+      (printf "~a" x)
+      (printf ", ~a" x)))
   (printf ";\n")
   (printf (get-output-string expr))
   (printf "}\n"))
 
-(all-passes '(let ([x 1]) x))
+(all-passes '(let ([x (let ([y 2]) y)]) x))
