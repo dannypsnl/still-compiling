@@ -85,6 +85,15 @@
         (,a ,b* ...))])
   (E e))
 
+(define-pass simplify-set! : L2 (e) -> L2 ()
+  (E : Expr (e) -> Expr ()
+    [(set! ,x (begin ,[e*] ... ,[e]))
+      `(begin ,e* ... ,(E `(set! ,x ,e)))]
+    [(set! ,x (if ,[e0] ,[e1] ,[e2]))
+      `(if ,e0
+        ,(E `(set! ,x ,e1))
+        ,(E `(set! ,x ,e2)))]))
+
 (define-language Final
   (extends L2)
   (Expr (e body)
@@ -95,10 +104,10 @@
 (define-pass explicate-tail : Final (e) -> Final ()
   (E : Expr (e) -> Expr ()
     [(return (begin ,e* ... ,e))
-      `(begin ,e* ... ,(E e))]
+      `(begin ,e* ... (return ,e))]
     [(return (if ,e0 ,e1 ,e2))
-      `(if ,e0 ,(E e1) ,(E e2))])
-  (E e))
+      `(if ,e0 (return ,e1) (return ,e2))]
+    [else e]))
 
 (define used-variables (mutable-set))
 (define-pass 2c : Final (e) -> * ()
@@ -133,18 +142,21 @@
     [else (error 'missing "handling ~a" e)])
   (E e))
 
-(define (all-passes form)
+(define all-passes
+  (compose
+    2c
+    explicate-tail
+    wrap-return
+    simplify-set!
+    remove-complex-operands
+    low-level-let
+    parse-scm))
+(define (compile form)
   (printf "#include \"scm.h\"\n\n")
   (printf "scm_t scheme_entry() {\n")
   (define expr (open-output-string ""))
   (parameterize ([current-output-port expr])
-    ((compose
-      2c
-      explicate-tail
-      wrap-return
-      remove-complex-operands
-      low-level-let
-      parse-scm) form))
+    (all-passes form))
   (unless (set-empty? used-variables)
     (printf "scm_t "))
   (for ([x (in-set used-variables)]
@@ -163,4 +175,5 @@
   #:mode 'text
   #:exists 'truncate/replace))
 (parameterize ([current-output-port out])
-  (all-passes '(if (let ([y #t]) y) 1 2)))
+  (compile '(let ([x (if (let ([y #t]) y) 1 2)]) x)
+    ))
