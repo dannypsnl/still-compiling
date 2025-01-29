@@ -104,9 +104,9 @@
 (define-pass explicate-tail : Final (e) -> Final ()
   (E : Expr (e) -> Expr ()
     [(return (begin ,e* ... ,e))
-      `(begin ,e* ... (return ,e))]
+      `(begin ,e* ... ,(E `(return ,e)))]
     [(return (if ,e0 ,e1 ,e2))
-      `(if ,e0 (return ,e1) (return ,e2))]
+      `(if ,e0 ,(E `(return ,e1)) ,(E `(return ,e2)))]
     [else e]))
 
 (define used-variables (mutable-set))
