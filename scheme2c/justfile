@@ -1,4 +1,4 @@
 run:
   racket main.rkt
-  clang runtime.c tmp.c
+  cc runtime.c tmp.c
   ./a.out
