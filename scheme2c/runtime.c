@@ -1,6 +1,6 @@
 #include "scm.h"
 
-__attribute__((__cdecl__)) extern scm_t scheme_entry();
+extern scm_t scheme_entry();
 
 int main(int argc, const char **argv)
 {
