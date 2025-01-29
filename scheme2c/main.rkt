@@ -33,7 +33,7 @@
     (+ (set! x e))))
 (define-pass low-level-let : L0 (e) -> L1 ()
   (E : Expr (e) -> Expr ()
-    [(let ([,x* ,[e*]] ...) ,body* ... ,body)
+    [(let ([,x* ,[e*]] ...) ,[body*] ... ,[body])
       (define binds
         (for/list ([x x*] [e e*])
           `(set! ,x ,e)))
@@ -175,5 +175,5 @@
   #:mode 'text
   #:exists 'truncate/replace))
 (parameterize ([current-output-port out])
-  (compile '(let ([x (if (let ([y #t]) y) 1 2)]) x)
+  (compile '(let ([x (if (let ([y #t]) y) 1 2)]) (let ([x x]) x))
     ))
