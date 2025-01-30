@@ -41,7 +41,7 @@ bool to_bool(scm_t val)
   }
   else
   {
-    return false;
+    return true;
   }
 }
 
