@@ -1,6 +1,8 @@
 # binding as sets of scopes
 
-[Binding as sets of scopes](https://dl.acm.org/doi/10.1145/2837614.2837620), this paper shows an essential way to implement hygienic macro, which seems a lot better than renaming based algorithm
+The paper shows an essential way to implement hygienic macro, which seems a lot better than renaming based algorithm.
+
+- Binding as sets of scopes: https://dl.acm.org/doi/10.1145/2837614.2837620
 
 ## Scopes Set
 
