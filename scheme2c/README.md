@@ -6,3 +6,7 @@ This project compiles a tiny subset of scheme to C, the point is
 2. remove complex operands from `if`
 3. simplify expression in `set!`, C won't accept `(if ...)` and `(begin ...)` (block is not a value in C, unlike Scala or Rust). This step also about control flow, `set!` be seen as a statement, not an expression
 4. explicate control flow by forwarding return statement
+
+# references
+
+1. A Low-Level Look at A-Normal Form: https://www.williamjbowman.com/resources/wjb2024-anf-is-dead.pdf
