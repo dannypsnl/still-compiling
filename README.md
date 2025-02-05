@@ -19,3 +19,4 @@
 - [local value numbering](local-value-numbering.rkt)
 - [register allocation](register-allocate.rkt)
 - [low-level ANF](scheme2c/)
+- [liveness analysis](ir.rkt)
