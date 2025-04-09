@@ -1,0 +1,4 @@
+(executable
+ (public_name usebindlib)
+ (name main)
+ (libraries usebindlib))
