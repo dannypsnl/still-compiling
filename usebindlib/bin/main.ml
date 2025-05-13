@@ -17,17 +17,28 @@ let rec eval : tm -> tm = function
 
 let mkfree : tm var -> tm = fun x -> Var x
 
+(* We need to provide a function that converts our term to boxed-term *)
 let rec box_term : tm -> tm box =
   fun t ->
   match t with
   | Var x -> var x
-  | Abs b -> abs_raw (box_binder box_term b)
+  | Abs b ->
+    (* box_binder is provided by bindlib *)
+    abs_raw (box_binder box_term b)
   | App (t, u) -> app (box_term t) (box_term u)
 
-and var : tm var -> tm box = fun x -> box_var x
+and var x =
+  (* box_var is provide by bindlib *)
+  box_var x
+
 and abs_raw : (tm, tm) binder box -> tm box = fun b -> box_apply (fun b -> Abs b) b
 and abs : tm var -> tm box -> tm box = fun x t -> abs_raw (bind_var x t)
-and app : tm box -> tm box -> tm box = fun t u -> box_apply2 (fun t u -> App (t, u)) t u
+
+and app : tm box -> tm box -> tm box =
+  fun t u ->
+  (* box_apply2 is provided by bindlib, a functorial way to operate boxed-term *)
+  box_apply2 (fun t u -> App (t, u)) t u
+;;
 
 let rec to_string : ctxt -> tm -> string =
   fun ctxt t ->
