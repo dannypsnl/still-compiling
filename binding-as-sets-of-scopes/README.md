@@ -29,7 +29,7 @@ The right-hand side of `m` binding has the scope set $\{a_{let}\}$, while the fi
 
 ## Use-site scope
 
-Let `m` be a macro, `(m m-id)` expanded to
+Let `m` be a macro, and `(m m-id)` will be expanded to
 
 ```scheme
 (lambda (x)
@@ -37,7 +37,7 @@ Let `m` be a macro, `(m m-id)` expanded to
     x))
 ```
 
-Therefore, if we provide `x` to `m`, `(m x)` expanded to
+Therefore, if we provide `x` to `m` then `(m x)` is
 
 ```scheme
 (lambda (x)
@@ -45,7 +45,7 @@ Therefore, if we provide `x` to `m`, `(m x)` expanded to
     x))
 ```
 
-The semantic get changed only if `m-id` equals to `x`, this is not expected behavior. We first look why the matched binding is wrong:
+The semantic get changed when `m-id` equals to `x`, and that change is not expected! We first look why the matched binding is wrong:
 
 ```scheme
 (lambda (x{lam1})
