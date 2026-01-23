@@ -437,7 +437,10 @@
 ;; Create a callable function from a finalized buffer
 ;; sig is the FFI function signature, e.g., (_fun _int64 _int64 -> _int64)
 (define (make-jit-function buf sig)
-  (cast (dynasm-finalize buf) _pointer sig))
+  (define ptr (dynasm-finalize buf))
+  (unless ptr
+    (error 'make-jit-function "finalize failed (mprotect error?)"))
+  (cast ptr _pointer sig))
 
 ;; ============================================
 ;; Exports
