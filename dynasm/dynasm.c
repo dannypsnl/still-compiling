@@ -19,15 +19,16 @@ dynasm_buffer_t* dynasm_create(size_t capacity) {
     dynasm_buffer_t* buf = malloc(sizeof(dynasm_buffer_t));
     if (!buf) return NULL;
 
-    // Allocate with MAP_JIT on macOS for W^X compliance
+    // Allocate executable memory
     int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+    int prot = PROT_READ | PROT_WRITE;
 #ifdef __APPLE__
+    // macOS with MAP_JIT uses pthread_jit_write_protect_np for W^X
     flags |= MAP_JIT;
+    prot |= PROT_EXEC;
 #endif
 
-    buf->code = mmap(NULL, capacity,
-                     PROT_READ | PROT_WRITE | PROT_EXEC,
-                     flags, -1, 0);
+    buf->code = mmap(NULL, capacity, prot, flags, -1, 0);
 
     if (buf->code == MAP_FAILED) {
         free(buf);
@@ -74,8 +75,15 @@ void* dynasm_finalize(dynasm_buffer_t* buf) {
     if (!buf || buf->finalized) return buf ? buf->code : NULL;
 
 #ifdef __APPLE__
+    // macOS: disable write access via JIT write protection
+    pthread_jit_write_protect_np(1);
     // Flush instruction cache on Apple Silicon
     sys_icache_invalidate(buf->code, buf->size);
+#else
+    // Other platforms: switch from writable to executable (W^X compliance)
+    if (mprotect(buf->code, buf->capacity, PROT_READ | PROT_EXEC) != 0) {
+        return NULL;
+    }
 #endif
 
     buf->finalized = 1;
