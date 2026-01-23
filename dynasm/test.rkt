@@ -6,7 +6,8 @@
 (require rackunit
          rackunit/text-ui
          ffi/unsafe
-         "dynasm.rkt")
+         "dynasm.rkt"
+         "jit-functions.rkt")
 
 ;; ============================================
 ;; Test helpers
@@ -1079,158 +1080,31 @@
        42 42)
       42))
 
-   (test-case "factorial 0"
-     (check-equal?
-      (run-jit-1arg
-       (lambda (buf)
-         (emit! buf (aarch64-movz X1 1 0))
-         (emit! buf (aarch64-cmp-imm X0 1))
-         (emit! buf (aarch64-b-cond COND-LE 4))
-         (emit! buf (aarch64-mul X1 X1 X0))
-         (emit! buf (aarch64-sub-imm X0 X0 1))
-         (emit! buf (aarch64-b -4))
-         (emit! buf (aarch64-add-reg X0 X1 XZR))
-         (emit! buf (aarch64-ret)))
-       0)
-      1))
+   ;; Use shared examples from examples.rkt
+   (test-case "factorial"
+     (check-equal? (jit-factorial 0) 1)
+     (check-equal? (jit-factorial 1) 1)
+     (check-equal? (jit-factorial 5) 120)
+     (check-equal? (jit-factorial 10) 3628800))
 
-   (test-case "factorial 1"
-     (check-equal?
-      (run-jit-1arg
-       (lambda (buf)
-         (emit! buf (aarch64-movz X1 1 0))
-         (emit! buf (aarch64-cmp-imm X0 1))
-         (emit! buf (aarch64-b-cond COND-LE 4))
-         (emit! buf (aarch64-mul X1 X1 X0))
-         (emit! buf (aarch64-sub-imm X0 X0 1))
-         (emit! buf (aarch64-b -4))
-         (emit! buf (aarch64-add-reg X0 X1 XZR))
-         (emit! buf (aarch64-ret)))
-       1)
-      1))
+   (test-case "fibonacci"
+     (check-equal? (jit-fibonacci 0) 0)
+     (check-equal? (jit-fibonacci 1) 1)
+     (check-equal? (jit-fibonacci 2) 1)
+     (check-equal? (jit-fibonacci 3) 2)
+     (check-equal? (jit-fibonacci 4) 3)
+     (check-equal? (jit-fibonacci 5) 5)
+     (check-equal? (jit-fibonacci 6) 8)
+     (check-equal? (jit-fibonacci 7) 13)
+     (check-equal? (jit-fibonacci 8) 21)
+     (check-equal? (jit-fibonacci 9) 34)
+     (check-equal? (jit-fibonacci 10) 55)
+     (check-equal? (jit-fibonacci 20) 6765))
 
-   (test-case "factorial 5"
-     (check-equal?
-      (run-jit-1arg
-       (lambda (buf)
-         (emit! buf (aarch64-movz X1 1 0))
-         (emit! buf (aarch64-cmp-imm X0 1))
-         (emit! buf (aarch64-b-cond COND-LE 4))
-         (emit! buf (aarch64-mul X1 X1 X0))
-         (emit! buf (aarch64-sub-imm X0 X0 1))
-         (emit! buf (aarch64-b -4))
-         (emit! buf (aarch64-add-reg X0 X1 XZR))
-         (emit! buf (aarch64-ret)))
-       5)
-      120))
-
-   (test-case "factorial 10"
-     (check-equal?
-      (run-jit-1arg
-       (lambda (buf)
-         (emit! buf (aarch64-movz X1 1 0))
-         (emit! buf (aarch64-cmp-imm X0 1))
-         (emit! buf (aarch64-b-cond COND-LE 4))
-         (emit! buf (aarch64-mul X1 X1 X0))
-         (emit! buf (aarch64-sub-imm X0 X0 1))
-         (emit! buf (aarch64-b -4))
-         (emit! buf (aarch64-add-reg X0 X1 XZR))
-         (emit! buf (aarch64-ret)))
-       10)
-      3628800))
-
-   (test-case "fibonacci 0"
-     (check-equal?
-      (run-jit-1arg
-       (lambda (buf)
-         (emit! buf (aarch64-cmp-imm X0 1))
-         (emit! buf (aarch64-b-cond COND-LE 11))
-         (emit! buf (aarch64-movz X1 0 0))
-         (emit! buf (aarch64-movz X2 1 0))
-         (emit! buf (aarch64-sub-imm X3 X0 1))
-         (emit! buf (aarch64-add-reg X4 X1 X2))
-         (emit! buf (aarch64-add-reg X1 X2 XZR))
-         (emit! buf (aarch64-add-reg X2 X4 XZR))
-         (emit! buf (aarch64-sub-imm X3 X3 1))
-         (emit! buf (aarch64-cmp-imm X3 0))
-         (emit! buf (aarch64-b-cond COND-GT -5))
-         (emit! buf (aarch64-add-reg X0 X2 XZR))
-         (emit! buf (aarch64-ret)))
-       0)
-      0))
-
-   (test-case "fibonacci 1"
-     (check-equal?
-      (run-jit-1arg
-       (lambda (buf)
-         (emit! buf (aarch64-cmp-imm X0 1))
-         (emit! buf (aarch64-b-cond COND-LE 11))
-         (emit! buf (aarch64-movz X1 0 0))
-         (emit! buf (aarch64-movz X2 1 0))
-         (emit! buf (aarch64-sub-imm X3 X0 1))
-         (emit! buf (aarch64-add-reg X4 X1 X2))
-         (emit! buf (aarch64-add-reg X1 X2 XZR))
-         (emit! buf (aarch64-add-reg X2 X4 XZR))
-         (emit! buf (aarch64-sub-imm X3 X3 1))
-         (emit! buf (aarch64-cmp-imm X3 0))
-         (emit! buf (aarch64-b-cond COND-GT -5))
-         (emit! buf (aarch64-add-reg X0 X2 XZR))
-         (emit! buf (aarch64-ret)))
-       1)
-      1))
-
-   (test-case "fibonacci 10"
-     (check-equal?
-      (run-jit-1arg
-       (lambda (buf)
-         (emit! buf (aarch64-cmp-imm X0 1))
-         (emit! buf (aarch64-b-cond COND-LE 11))
-         (emit! buf (aarch64-movz X1 0 0))
-         (emit! buf (aarch64-movz X2 1 0))
-         (emit! buf (aarch64-sub-imm X3 X0 1))
-         (emit! buf (aarch64-add-reg X4 X1 X2))
-         (emit! buf (aarch64-add-reg X1 X2 XZR))
-         (emit! buf (aarch64-add-reg X2 X4 XZR))
-         (emit! buf (aarch64-sub-imm X3 X3 1))
-         (emit! buf (aarch64-cmp-imm X3 0))
-         (emit! buf (aarch64-b-cond COND-GT -5))
-         (emit! buf (aarch64-add-reg X0 X2 XZR))
-         (emit! buf (aarch64-ret)))
-       10)
-      55))
-
-   (test-case "gcd(48, 18)"
-     (check-equal?
-      (run-jit-2arg
-       (lambda (buf)
-         ;; gcd using euclidean algorithm
-         (emit! buf (aarch64-cmp-imm X1 0))
-         (emit! buf (aarch64-b-cond COND-EQ 7))
-         (emit! buf (aarch64-sdiv X2 X0 X1))
-         (emit! buf (aarch64-mul X2 X2 X1))
-         (emit! buf (aarch64-sub-reg X2 X0 X2))
-         (emit! buf (aarch64-add-reg X0 X1 XZR))
-         (emit! buf (aarch64-add-reg X1 X2 XZR))
-         (emit! buf (aarch64-b -7))
-         (emit! buf (aarch64-ret)))
-       48 18)
-      6))
-
-   (test-case "gcd(17, 13)"
-     (check-equal?
-      (run-jit-2arg
-       (lambda (buf)
-         (emit! buf (aarch64-cmp-imm X1 0))
-         (emit! buf (aarch64-b-cond COND-EQ 7))
-         (emit! buf (aarch64-sdiv X2 X0 X1))
-         (emit! buf (aarch64-mul X2 X2 X1))
-         (emit! buf (aarch64-sub-reg X2 X0 X2))
-         (emit! buf (aarch64-add-reg X0 X1 XZR))
-         (emit! buf (aarch64-add-reg X1 X2 XZR))
-         (emit! buf (aarch64-b -7))
-         (emit! buf (aarch64-ret)))
-       17 13)
-      1))
+   (test-case "gcd"
+     (check-equal? (jit-gcd 48 18) 6)
+     (check-equal? (jit-gcd 17 13) 1)
+     (check-equal? (jit-gcd 100 25) 25))
 
    (test-case "complex expression (a+b)*(c-d)/e = 42"
      (check-equal?
