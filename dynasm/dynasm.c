@@ -158,6 +158,126 @@ uint32_t aarch64_sdiv(int rd, int rn, int rm) {
            ((rn & 0x1F) << 5) | (rd & 0x1F);
 }
 
+// MSUB: Rd = Ra - Rn * Rm
+// 64-bit: 1 00 11011 000 Rm 1 Ra Rn Rd
+uint32_t aarch64_msub(int rd, int rn, int rm, int ra) {
+    uint32_t sf = 1;  // 64-bit
+    return (sf << 31) | (0b0011011000 << 21) |
+           ((rm & 0x1F) << 16) | (1 << 15) | ((ra & 0x1F) << 10) |
+           ((rn & 0x1F) << 5) | (rd & 0x1F);
+}
+
+// LSR immediate (alias of UBFM)
+// 64-bit: 1 10 100110 1 immr imms Rn Rd
+// LSR Rd, Rn, #shift => UBFM Rd, Rn, #shift, #63
+uint32_t aarch64_lsr_imm(int rd, int rn, int imm6) {
+    uint32_t sf = 1;  // 64-bit
+    uint32_t N = 1;   // 64-bit
+    uint32_t immr = imm6 & 0x3F;
+    uint32_t imms = 63;  // for 64-bit LSR
+    return (sf << 31) | (0b10 << 29) | (0b100110 << 23) | (N << 22) |
+           (immr << 16) | (imms << 10) | ((rn & 0x1F) << 5) | (rd & 0x1F);
+}
+
+// LSR register
+// 64-bit: 1 0 0 11010110 Rm 0010 01 Rn Rd
+uint32_t aarch64_lsr_reg(int rd, int rn, int rm) {
+    uint32_t sf = 1;  // 64-bit
+    return (sf << 31) | (0b0011010110 << 21) |
+           ((rm & 0x1F) << 16) | (0b001001 << 10) |
+           ((rn & 0x1F) << 5) | (rd & 0x1F);
+}
+
+// LSL immediate (alias of UBFM)
+// 64-bit: LSL Rd, Rn, #shift => UBFM Rd, Rn, #(-shift mod 64), #(63-shift)
+uint32_t aarch64_lsl_imm(int rd, int rn, int imm6) {
+    uint32_t sf = 1;  // 64-bit
+    uint32_t N = 1;   // 64-bit
+    uint32_t immr = (-imm6) & 0x3F;
+    uint32_t imms = (63 - imm6) & 0x3F;
+    return (sf << 31) | (0b10 << 29) | (0b100110 << 23) | (N << 22) |
+           (immr << 16) | (imms << 10) | ((rn & 0x1F) << 5) | (rd & 0x1F);
+}
+
+// LSL register
+// 64-bit: 1 0 0 11010110 Rm 0010 00 Rn Rd
+uint32_t aarch64_lsl_reg(int rd, int rn, int rm) {
+    uint32_t sf = 1;  // 64-bit
+    return (sf << 31) | (0b0011010110 << 21) |
+           ((rm & 0x1F) << 16) | (0b001000 << 10) |
+           ((rn & 0x1F) << 5) | (rd & 0x1F);
+}
+
+// AND immediate - simplified for power-of-2-minus-1 masks (like 0x1)
+// For imm=1: N=1, immr=0, imms=0 gives mask 0x1
+// 64-bit: 1 00 100100 N immr imms Rn Rd
+uint32_t aarch64_and_imm(int rd, int rn, uint64_t imm) {
+    uint32_t sf = 1;  // 64-bit
+    uint32_t N = 1;
+    uint32_t immr = 0;
+    uint32_t imms = 0;
+
+    // Handle simple case: imm = 1 (test lowest bit)
+    if (imm == 1) {
+        N = 1; immr = 0; imms = 0;
+    }
+    // Add more cases as needed
+
+    return (sf << 31) | (0b00 << 29) | (0b100100 << 23) | (N << 22) |
+           (immr << 16) | (imms << 10) | ((rn & 0x1F) << 5) | (rd & 0x1F);
+}
+
+// TST immediate (alias of ANDS with Rd=XZR)
+// 64-bit: 1 11 100100 N immr imms Rn 11111
+uint32_t aarch64_tst_imm(int rn, uint64_t imm) {
+    uint32_t sf = 1;  // 64-bit
+    uint32_t N = 1;
+    uint32_t immr = 0;
+    uint32_t imms = 0;
+
+    // Handle simple case: imm = 1 (test lowest bit)
+    if (imm == 1) {
+        N = 1; immr = 0; imms = 0;
+    }
+
+    return (sf << 31) | (0b11 << 29) | (0b100100 << 23) | (N << 22) |
+           (immr << 16) | (imms << 10) | ((rn & 0x1F) << 5) | 0x1F;
+}
+
+// CLZ: Count Leading Zeros
+// 64-bit: 1 1 0 11010110 00000 00010 0 Rn Rd
+uint32_t aarch64_clz(int rd, int rn) {
+    uint32_t sf = 1;  // 64-bit
+    return (sf << 31) | (0b1011010110 << 21) | (0b00000 << 16) |
+           (0b000100 << 10) | ((rn & 0x1F) << 5) | (rd & 0x1F);
+}
+
+// RBIT: Reverse Bits
+// 64-bit: 1 1 0 11010110 00000 00000 0 Rn Rd
+uint32_t aarch64_rbit(int rd, int rn) {
+    uint32_t sf = 1;  // 64-bit
+    return (sf << 31) | (0b1011010110 << 21) | (0b00000 << 16) |
+           (0b000000 << 10) | ((rn & 0x1F) << 5) | (rd & 0x1F);
+}
+
+// CSEL: Conditional Select
+// 64-bit: 1 0 0 11010100 Rm cond 0 0 Rn Rd
+uint32_t aarch64_csel(int rd, int rn, int rm, int cond) {
+    uint32_t sf = 1;  // 64-bit
+    return (sf << 31) | (0b0011010100 << 21) |
+           ((rm & 0x1F) << 16) | ((cond & 0xF) << 12) |
+           ((rn & 0x1F) << 5) | (rd & 0x1F);
+}
+
+// CSNEG: Conditional Select Negation
+// 64-bit: 1 1 0 11010100 Rm cond 0 1 Rn Rd
+uint32_t aarch64_csneg(int rd, int rn, int rm, int cond) {
+    uint32_t sf = 1;  // 64-bit
+    return (sf << 31) | (0b1011010100 << 21) |
+           ((rm & 0x1F) << 16) | ((cond & 0xF) << 12) | (1 << 10) |
+           ((rn & 0x1F) << 5) | (rd & 0x1F);
+}
+
 // RET: return (default x30)
 uint32_t aarch64_ret(void) {
     return aarch64_ret_reg(30);

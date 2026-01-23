@@ -79,6 +79,50 @@
   (_fun _int _int _int -> _uint32)
   #:c-id aarch64_sdiv)
 
+(define-dynasm aarch64-msub
+  (_fun _int _int _int _int -> _uint32)
+  #:c-id aarch64_msub)
+
+(define-dynasm aarch64-lsr-imm
+  (_fun _int _int _int -> _uint32)
+  #:c-id aarch64_lsr_imm)
+
+(define-dynasm aarch64-lsr-reg
+  (_fun _int _int _int -> _uint32)
+  #:c-id aarch64_lsr_reg)
+
+(define-dynasm aarch64-lsl-imm
+  (_fun _int _int _int -> _uint32)
+  #:c-id aarch64_lsl_imm)
+
+(define-dynasm aarch64-lsl-reg
+  (_fun _int _int _int -> _uint32)
+  #:c-id aarch64_lsl_reg)
+
+(define-dynasm aarch64-and-imm
+  (_fun _int _int _uint64 -> _uint32)
+  #:c-id aarch64_and_imm)
+
+(define-dynasm aarch64-tst-imm
+  (_fun _int _uint64 -> _uint32)
+  #:c-id aarch64_tst_imm)
+
+(define-dynasm aarch64-clz
+  (_fun _int _int -> _uint32)
+  #:c-id aarch64_clz)
+
+(define-dynasm aarch64-rbit
+  (_fun _int _int -> _uint32)
+  #:c-id aarch64_rbit)
+
+(define-dynasm aarch64-csel
+  (_fun _int _int _int _int -> _uint32)
+  #:c-id aarch64_csel)
+
+(define-dynasm aarch64-csneg
+  (_fun _int _int _int _int -> _uint32)
+  #:c-id aarch64_csneg)
+
 (define-dynasm aarch64-ret
   (_fun -> _uint32)
   #:c-id aarch64_ret)
@@ -416,6 +460,17 @@
  aarch64-sub-reg
  aarch64-mul
  aarch64-sdiv
+ aarch64-msub
+ aarch64-lsr-imm
+ aarch64-lsr-reg
+ aarch64-lsl-imm
+ aarch64-lsl-reg
+ aarch64-and-imm
+ aarch64-tst-imm
+ aarch64-clz
+ aarch64-rbit
+ aarch64-csel
+ aarch64-csneg
  aarch64-ret
  aarch64-ret-reg
  aarch64-blr

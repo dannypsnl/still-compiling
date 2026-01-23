@@ -51,6 +51,39 @@ uint32_t aarch64_mul(int rd, int rn, int rm);
 // SDIV: rd = rn / rm (signed)
 uint32_t aarch64_sdiv(int rd, int rn, int rm);
 
+// MSUB: rd = ra - rn * rm (multiply-subtract)
+uint32_t aarch64_msub(int rd, int rn, int rm, int ra);
+
+// LSR immediate: rd = rn >> imm6 (logical shift right)
+uint32_t aarch64_lsr_imm(int rd, int rn, int imm6);
+
+// LSR register: rd = rn >> (rm & 63) (logical shift right)
+uint32_t aarch64_lsr_reg(int rd, int rn, int rm);
+
+// LSL immediate: rd = rn << imm6 (logical shift left)
+uint32_t aarch64_lsl_imm(int rd, int rn, int imm6);
+
+// LSL register: rd = rn << (rm & 63) (logical shift left)
+uint32_t aarch64_lsl_reg(int rd, int rn, int rm);
+
+// AND immediate: rd = rn & imm (limited encoding)
+uint32_t aarch64_and_imm(int rd, int rn, uint64_t imm);
+
+// TST immediate: test rn & imm, set flags (alias of ANDS with XZR)
+uint32_t aarch64_tst_imm(int rn, uint64_t imm);
+
+// CLZ: rd = count leading zeros in rn
+uint32_t aarch64_clz(int rd, int rn);
+
+// RBIT: rd = reverse bits of rn
+uint32_t aarch64_rbit(int rd, int rn);
+
+// CSEL: rd = (cond) ? rn : rm
+uint32_t aarch64_csel(int rd, int rn, int rm, int cond);
+
+// CSNEG: rd = (cond) ? rn : -rm
+uint32_t aarch64_csneg(int rd, int rn, int rm, int cond);
+
 // RET: return from subroutine (uses x30/LR by default)
 uint32_t aarch64_ret(void);
 
