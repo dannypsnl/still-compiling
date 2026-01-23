@@ -1,26 +1,26 @@
 #ifndef DYNASM_H
 #define DYNASM_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 // Opaque handle for code buffer
 typedef struct dynasm_buffer dynasm_buffer_t;
 
 // Create a new code buffer with given capacity
-dynasm_buffer_t* dynasm_create(size_t capacity);
+dynasm_buffer_t *dynasm_create(size_t capacity);
 
 // Free a code buffer
-void dynasm_free(dynasm_buffer_t* buf);
+void dynasm_free(dynasm_buffer_t *buf);
 
 // Get current code position (offset)
-size_t dynasm_pos(dynasm_buffer_t* buf);
+size_t dynasm_pos(dynasm_buffer_t *buf);
 
 // Emit raw 32-bit instruction
-void dynasm_emit32(dynasm_buffer_t* buf, uint32_t inst);
+void dynasm_emit32(dynasm_buffer_t *buf, uint32_t inst);
 
 // Finalize and get executable function pointer
-void* dynasm_finalize(dynasm_buffer_t* buf);
+void *dynasm_finalize(dynasm_buffer_t *buf);
 
 // ============================================
 // AArch64 instruction encoders
@@ -118,12 +118,12 @@ uint32_t aarch64_cmp_imm(int rn, uint16_t imm12);
 uint32_t aarch64_b_cond(int cond, int32_t offset);
 
 // Condition codes for B.cond
-#define COND_EQ 0x0  // Equal
-#define COND_NE 0x1  // Not equal
-#define COND_GE 0xA  // Greater or equal (signed)
-#define COND_LT 0xB  // Less than (signed)
-#define COND_GT 0xC  // Greater than (signed)
-#define COND_LE 0xD  // Less or equal (signed)
+#define COND_EQ 0x0 // Equal
+#define COND_NE 0x1 // Not equal
+#define COND_GE 0xA // Greater or equal (signed)
+#define COND_LT 0xB // Less than (signed)
+#define COND_GT 0xC // Greater than (signed)
+#define COND_LE 0xD // Less or equal (signed)
 
 // B: unconditional branch (offset in instructions)
 uint32_t aarch64_b(int32_t offset);
@@ -134,16 +134,16 @@ uint32_t aarch64_nop(void);
 // ============================================
 // Register aliases
 // ============================================
-#define X0  0
-#define X1  1
-#define X2  2
-#define X3  3
-#define X4  4
-#define X5  5
-#define X6  6
-#define X7  7
-#define X8  8
-#define X9  9
+#define X0 0
+#define X1 1
+#define X2 2
+#define X3 3
+#define X4 4
+#define X5 5
+#define X6 6
+#define X7 7
+#define X8 8
+#define X9 9
 #define X10 10
 #define X11 11
 #define X12 12
@@ -163,10 +163,10 @@ uint32_t aarch64_nop(void);
 #define X26 26
 #define X27 27
 #define X28 28
-#define X29 29  // Frame pointer
-#define X30 30  // Link register
-#define SP  31  // Stack pointer (context dependent)
-#define XZR 31  // Zero register (context dependent)
+#define X29 29 // Frame pointer
+#define X30 30 // Link register
+#define SP 31  // Stack pointer (context dependent)
+#define XZR 31 // Zero register (context dependent)
 
 #define FP X29
 #define LR X30
@@ -174,16 +174,16 @@ uint32_t aarch64_nop(void);
 // ============================================
 // SIMD/NEON Vector registers (V0-V31)
 // ============================================
-#define V0  0
-#define V1  1
-#define V2  2
-#define V3  3
-#define V4  4
-#define V5  5
-#define V6  6
-#define V7  7
-#define V8  8
-#define V9  9
+#define V0 0
+#define V1 1
+#define V2 2
+#define V3 3
+#define V4 4
+#define V5 5
+#define V6 6
+#define V7 7
+#define V8 8
+#define V9 9
 #define V10 10
 #define V11 11
 #define V12 12
@@ -208,13 +208,13 @@ uint32_t aarch64_nop(void);
 #define V31 31
 
 // SIMD arrangement specifiers
-#define SIMD_8B  0   // 8 x 8-bit (64-bit total)
-#define SIMD_16B 1   // 16 x 8-bit (128-bit total)
-#define SIMD_4H  2   // 4 x 16-bit (64-bit total)
-#define SIMD_8H  3   // 8 x 16-bit (128-bit total)
-#define SIMD_2S  4   // 2 x 32-bit (64-bit total)
-#define SIMD_4S  5   // 4 x 32-bit (128-bit total)
-#define SIMD_2D  6   // 2 x 64-bit (128-bit total)
+#define SIMD_8B 0  // 8 x 8-bit (64-bit total)
+#define SIMD_16B 1 // 16 x 8-bit (128-bit total)
+#define SIMD_4H 2  // 4 x 16-bit (64-bit total)
+#define SIMD_8H 3  // 8 x 16-bit (128-bit total)
+#define SIMD_2S 4  // 2 x 32-bit (64-bit total)
+#define SIMD_4S 5  // 4 x 32-bit (128-bit total)
+#define SIMD_2D 6  // 2 x 64-bit (128-bit total)
 
 // ============================================
 // SIMD/NEON instruction encoders
@@ -308,8 +308,9 @@ uint32_t aarch64_fmov_gp_to_vec(int vd, int rn);
 // FMOV (vector to general): move vector element 0 to GP register
 uint32_t aarch64_fmov_vec_to_gp(int rd, int vn);
 
-// UMOV (unsigned move): extract unsigned integer from vector lane to GP register
-// For 4S (32-bit lanes): extracts lane to W register (zero-extended to X)
+// UMOV (unsigned move): extract unsigned integer from vector lane to GP
+// register For 4S (32-bit lanes): extracts lane to W register (zero-extended to
+// X)
 uint32_t aarch64_umov(int rd, int vn, int arr, int index);
 
 // INS (general): insert GP register into vector lane
