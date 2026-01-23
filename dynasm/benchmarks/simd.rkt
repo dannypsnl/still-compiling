@@ -22,10 +22,9 @@
     (emit! buf (aarch64-add-imm X0 X0 16))            ; ptr += 16
     (emit! buf (aarch64-add-imm X2 X2 2))             ; i += 2
     (emit! buf (aarch64-b -6))                        ; goto loop
-    ;; reduce
-    (emit! buf (aarch64-fmov-vec-to-gp X2 V0))
-    (emit! buf (aarch64-dup-element V1 V0 SIMD-2D 1))
-    (emit! buf (aarch64-fmov-vec-to-gp X3 V1))
+    ;; reduce: extract both 64-bit lanes and add
+    (emit! buf (aarch64-umov X2 V0 SIMD-2D 0))  ; X2 = V0[0]
+    (emit! buf (aarch64-umov X3 V0 SIMD-2D 1))  ; X3 = V0[1]
     (emit! buf (aarch64-add-reg X0 X2 X3))
     (emit! buf (aarch64-ret))
     (make-jit-function buf (_fun _pointer _int64 -> _int64))))
@@ -57,10 +56,9 @@
     (emit! buf (aarch64-add-imm X1 X1 16))
     (emit! buf (aarch64-add-imm X3 X3 2))
     (emit! buf (aarch64-b -18))
-    ;; reduce
-    (emit! buf (aarch64-fmov-vec-to-gp X4 V0))
-    (emit! buf (aarch64-dup-element V1 V0 SIMD-2D 1))
-    (emit! buf (aarch64-fmov-vec-to-gp X5 V1))
+    ;; reduce: extract both 64-bit lanes and add
+    (emit! buf (aarch64-umov X4 V0 SIMD-2D 0))  ; X4 = V0[0]
+    (emit! buf (aarch64-umov X5 V0 SIMD-2D 1))  ; X5 = V0[1]
     (emit! buf (aarch64-add-reg X0 X4 X5))
     (emit! buf (aarch64-ret))
     (make-jit-function buf (_fun _pointer _pointer _int64 -> _int64))))

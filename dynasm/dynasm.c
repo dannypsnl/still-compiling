@@ -540,12 +540,12 @@ uint32_t aarch64_ins_general(int vd, int rn, int arr, int index) {
            (0b000111 << 10) | ((rn & 0x1F) << 5) | (vd & 0x1F);
 }
 
-// EOR (vector): 0 Q 1 01110 size 1 Rm 001111 Rn Rd
+// EOR (vector): 0 Q 10 1110 sz 1 Rm 0001 11 Rn Rd
 uint32_t aarch64_eor_simd(int vd, int vn, int vm, int arr) {
     uint32_t q, size;
     arr_to_qsize(arr, &q, &size);
     // EOR always uses size=00 in encoding (operates on bytes regardless of arr)
     return (q << 30) | (0b101110 << 24) | (0b00 << 22) | (1 << 21) |
-           ((vm & 0x1F) << 16) | (0b001111 << 10) |
+           ((vm & 0x1F) << 16) | (0b000111 << 10) |
            ((vn & 0x1F) << 5) | (vd & 0x1F);
 }
