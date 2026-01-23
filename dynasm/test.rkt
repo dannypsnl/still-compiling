@@ -1330,6 +1330,19 @@
       42))))
 
 ;; ============================================
+;; Error handling tests
+;; ============================================
+
+(define error-handling-tests
+  (test-suite
+   "Error handling tests"
+
+   (test-case "make-jit-function raises error on NULL buffer"
+     (check-exn
+      exn:fail?
+      (lambda () (make-jit-function #f (_fun -> _int64)))))))
+
+;; ============================================
 ;; Run all tests
 ;; ============================================
 
@@ -1352,7 +1365,8 @@
    integration-tests
    encoding-tests
    simd-encoding-tests
-   simd-execution-tests))
+   simd-execution-tests
+   error-handling-tests))
 
 (module+ main
   (run-tests all-tests 'verbose))

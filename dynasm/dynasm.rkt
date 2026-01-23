@@ -439,7 +439,7 @@
 (define (make-jit-function buf sig)
   (define ptr (dynasm-finalize buf))
   (unless ptr
-    (error 'make-jit-function "finalize failed (mprotect error?)"))
+    (error 'make-jit-function "finalize failed, code instructions is NULL"))
   (cast ptr _pointer sig))
 
 ;; ============================================
