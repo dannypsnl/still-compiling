@@ -138,4 +138,151 @@ uint32_t aarch64_nop(void);
 #define FP X29
 #define LR X30
 
+// ============================================
+// SIMD/NEON Vector registers (V0-V31)
+// ============================================
+#define V0  0
+#define V1  1
+#define V2  2
+#define V3  3
+#define V4  4
+#define V5  5
+#define V6  6
+#define V7  7
+#define V8  8
+#define V9  9
+#define V10 10
+#define V11 11
+#define V12 12
+#define V13 13
+#define V14 14
+#define V15 15
+#define V16 16
+#define V17 17
+#define V18 18
+#define V19 19
+#define V20 20
+#define V21 21
+#define V22 22
+#define V23 23
+#define V24 24
+#define V25 25
+#define V26 26
+#define V27 27
+#define V28 28
+#define V29 29
+#define V30 30
+#define V31 31
+
+// SIMD arrangement specifiers
+#define SIMD_8B  0   // 8 x 8-bit (64-bit total)
+#define SIMD_16B 1   // 16 x 8-bit (128-bit total)
+#define SIMD_4H  2   // 4 x 16-bit (64-bit total)
+#define SIMD_8H  3   // 8 x 16-bit (128-bit total)
+#define SIMD_2S  4   // 2 x 32-bit (64-bit total)
+#define SIMD_4S  5   // 4 x 32-bit (128-bit total)
+#define SIMD_2D  6   // 2 x 64-bit (128-bit total)
+
+// ============================================
+// SIMD/NEON instruction encoders
+// ============================================
+
+// LDR (vector, immediate): load 128-bit vector from [base + offset*16]
+uint32_t aarch64_ldr_simd(int vt, int rn, uint16_t offset);
+
+// STR (vector, immediate): store 128-bit vector to [base + offset*16]
+uint32_t aarch64_str_simd(int vt, int rn, uint16_t offset);
+
+// DUP (element): duplicate scalar element to all lanes
+// arr: arrangement (SIMD_4S, SIMD_2D, etc.)
+uint32_t aarch64_dup_element(int vd, int vn, int arr, int index);
+
+// DUP (general): duplicate general-purpose register to all vector lanes
+uint32_t aarch64_dup_general(int vd, int rn, int arr);
+
+// ADD (vector, integer): vd = vn + vm (element-wise)
+uint32_t aarch64_add_simd(int vd, int vn, int vm, int arr);
+
+// SUB (vector, integer): vd = vn - vm (element-wise)
+uint32_t aarch64_sub_simd(int vd, int vn, int vm, int arr);
+
+// MUL (vector, integer): vd = vn * vm (element-wise, not for 2D)
+uint32_t aarch64_mul_simd(int vd, int vn, int vm, int arr);
+
+// FADD (vector, float): vd = vn + vm (element-wise float)
+// arr: SIMD_4S (4x float32) or SIMD_2D (2x float64)
+uint32_t aarch64_fadd_simd(int vd, int vn, int vm, int arr);
+
+// FSUB (vector, float): vd = vn - vm (element-wise float)
+uint32_t aarch64_fsub_simd(int vd, int vn, int vm, int arr);
+
+// FMUL (vector, float): vd = vn * vm (element-wise float)
+uint32_t aarch64_fmul_simd(int vd, int vn, int vm, int arr);
+
+// FDIV (vector, float): vd = vn / vm (element-wise float)
+uint32_t aarch64_fdiv_simd(int vd, int vn, int vm, int arr);
+
+// ADDV (across vector): reduce by adding all lanes
+// Result in lowest lane of vd
+uint32_t aarch64_addv(int vd, int vn, int arr);
+
+// FADDP (pairwise add, float): add adjacent pairs
+uint32_t aarch64_faddp_simd(int vd, int vn, int vm, int arr);
+
+// FMLA (vector, float): vd = vd + vn * vm (fused multiply-add)
+uint32_t aarch64_fmla_simd(int vd, int vn, int vm, int arr);
+
+// MLA (vector, integer): vd = vd + vn * vm (multiply-add, not for 2D)
+uint32_t aarch64_mla_simd(int vd, int vn, int vm, int arr);
+
+// MOVI: move immediate to vector (set all lanes to imm8)
+uint32_t aarch64_movi(int vd, uint8_t imm8, int arr);
+
+// SCVTF (vector): convert signed integer to float
+uint32_t aarch64_scvtf_simd(int vd, int vn, int arr);
+
+// FCVTZS (vector): convert float to signed integer (truncate toward zero)
+uint32_t aarch64_fcvtzs_simd(int vd, int vn, int arr);
+
+// SMAX (vector): signed maximum element-wise
+uint32_t aarch64_smax_simd(int vd, int vn, int vm, int arr);
+
+// SMIN (vector): signed minimum element-wise
+uint32_t aarch64_smin_simd(int vd, int vn, int vm, int arr);
+
+// FMAX (vector): floating-point maximum element-wise
+uint32_t aarch64_fmax_simd(int vd, int vn, int vm, int arr);
+
+// FMIN (vector): floating-point minimum element-wise
+uint32_t aarch64_fmin_simd(int vd, int vn, int vm, int arr);
+
+// SMAXV (across vector): signed maximum across vector
+uint32_t aarch64_smaxv(int vd, int vn, int arr);
+
+// SMINV (across vector): signed minimum across vector
+uint32_t aarch64_sminv(int vd, int vn, int arr);
+
+// FMAXV (across vector): floating-point maximum across vector (4S only)
+uint32_t aarch64_fmaxv(int vd, int vn);
+
+// FMINV (across vector): floating-point minimum across vector (4S only)
+uint32_t aarch64_fminv(int vd, int vn);
+
+// FMOV (general to vector): move GP register to vector element 0
+// For 64-bit: moves X register to D0 (double) lane
+uint32_t aarch64_fmov_gp_to_vec(int vd, int rn);
+
+// FMOV (vector to general): move vector element 0 to GP register
+uint32_t aarch64_fmov_vec_to_gp(int rd, int vn);
+
+// UMOV (unsigned move): extract unsigned integer from vector lane to GP register
+// For 4S (32-bit lanes): extracts lane to W register (zero-extended to X)
+uint32_t aarch64_umov(int rd, int vn, int arr, int index);
+
+// INS (general): insert GP register into vector lane
+uint32_t aarch64_ins_general(int vd, int rn, int arr, int index);
+
+// EOR (vector): bitwise XOR, useful for zeroing registers (EOR Vd, Vn, Vn)
+uint32_t aarch64_eor_simd(int vd, int vn, int vm, int arr);
+
 #endif // DYNASM_H
