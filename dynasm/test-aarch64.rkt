@@ -10,6 +10,14 @@
          "jit-functions.rkt")
 
 ;; ============================================
+;; Architecture check - skip tests if not aarch64
+;; ============================================
+
+(unless (eq? (system-type 'arch) 'aarch64)
+  (printf "Skipping aarch64 tests: system architecture is ~a\n" (system-type 'arch))
+  (exit 0))
+
+;; ============================================
 ;; Test helpers
 ;; ============================================
 
