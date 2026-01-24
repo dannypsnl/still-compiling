@@ -7,7 +7,7 @@
          rackunit/text-ui
          ffi/unsafe
          "dynasm.rkt"
-         "jit-functions.rkt")
+         "jit-functions-aarch64.rkt")
 
 ;; ============================================
 ;; Architecture check - skip tests if not aarch64

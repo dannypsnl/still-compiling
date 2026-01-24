@@ -3,7 +3,7 @@
 ;;; Scalar JIT vs Native Racket Benchmarks
 
 (require "common.rkt"
-         "../jit-functions.rkt")
+         "../jit-functions-aarch64.rkt")
 (require racket/format
          math/number-theory)
 
