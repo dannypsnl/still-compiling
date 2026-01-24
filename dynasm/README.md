@@ -3,7 +3,7 @@
 A small JIT framework in Racket, architecture
 
 - [x] aarch64
-- [ ] x86/64
+- [x] x86/64
 - [ ] RISC-V
 
 ## Dependencies
