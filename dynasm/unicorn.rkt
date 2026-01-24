@@ -53,10 +53,12 @@
 ;; Architecture types
 (define UC_ARCH_ARM 1)
 (define UC_ARCH_ARM64 2)
+(define UC_ARCH_X86 4)
 
 ;; Mode types
 (define UC_MODE_ARM 0)
 (define UC_MODE_LITTLE_ENDIAN 0)
+(define UC_MODE_64 8)  ; 64-bit mode for x86
 
 ;; Error codes
 (define UC_ERR_OK 0)
@@ -138,6 +140,26 @@
 (define UC_ARM64_REG_V30 258)
 (define UC_ARM64_REG_V31 259)
 
+;; X86-64 registers (from unicorn/x86.h - Unicorn 2.x values)
+(define UC_X86_REG_INVALID 0)
+(define UC_X86_REG_RAX 19)
+(define UC_X86_REG_RCX 20)
+(define UC_X86_REG_RDX 21)
+(define UC_X86_REG_RBX 22)
+(define UC_X86_REG_RSP 23)
+(define UC_X86_REG_RBP 24)
+(define UC_X86_REG_RSI 25)
+(define UC_X86_REG_RDI 26)
+(define UC_X86_REG_R8 27)
+(define UC_X86_REG_R9 28)
+(define UC_X86_REG_R10 29)
+(define UC_X86_REG_R11 30)
+(define UC_X86_REG_R12 31)
+(define UC_X86_REG_R13 32)
+(define UC_X86_REG_R14 33)
+(define UC_X86_REG_R15 34)
+(define UC_X86_REG_RIP 35)
+
 ;; ============================================
 ;; Core API
 ;; ============================================
@@ -216,6 +238,13 @@
     (error 'uc-create-arm64 "Failed to create unicorn instance: ~a" (uc-strerror err)))
   uc)
 
+;; Create a new x86-64 emulator instance
+(define (uc-create-x64)
+  (define-values (err uc) (uc-open UC_ARCH_X86 UC_MODE_64))
+  (unless (= err UC_ERR_OK)
+    (error 'uc-create-x64 "Failed to create unicorn instance: ~a" (uc-strerror err)))
+  uc)
+
 ;; Write a 64-bit value to a register
 (define (uc-reg-write-u64 uc regid value)
   (define buf (make-bytes 8))
@@ -273,8 +302,10 @@
 (provide
  ;; Constants
  UC_ARCH_ARM64
+ UC_ARCH_X86
  UC_MODE_ARM
  UC_MODE_LITTLE_ENDIAN
+ UC_MODE_64
  UC_ERR_OK
  UC_PROT_NONE
  UC_PROT_READ
@@ -305,6 +336,14 @@
  UC_ARM64_REG_V24 UC_ARM64_REG_V25 UC_ARM64_REG_V26 UC_ARM64_REG_V27
  UC_ARM64_REG_V28 UC_ARM64_REG_V29 UC_ARM64_REG_V30 UC_ARM64_REG_V31
 
+ ;; X86-64 registers
+ UC_X86_REG_INVALID
+ UC_X86_REG_RAX UC_X86_REG_RCX UC_X86_REG_RDX UC_X86_REG_RBX
+ UC_X86_REG_RSP UC_X86_REG_RBP UC_X86_REG_RSI UC_X86_REG_RDI
+ UC_X86_REG_R8 UC_X86_REG_R9 UC_X86_REG_R10 UC_X86_REG_R11
+ UC_X86_REG_R12 UC_X86_REG_R13 UC_X86_REG_R14 UC_X86_REG_R15
+ UC_X86_REG_RIP
+
  ;; Core API
  uc-open
  uc-close
@@ -318,6 +357,7 @@
 
  ;; Helper functions
  uc-create-arm64
+ uc-create-x64
  uc-reg-write-u64
  uc-reg-read-u64
  uc-reg-write-u128
