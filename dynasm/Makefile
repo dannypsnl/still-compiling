@@ -1,19 +1,29 @@
 .PHONY: all clean test
 
-CC = clang
+CC ?= gcc
 CFLAGS = -Wall -Wextra -O2 -fPIC
 
-# macOS shared library
-DYLIB = libdynasm.dylib
+# Detect OS
+UNAME_S := $(shell uname -s)
 
-all: $(DYLIB)
+ifeq ($(UNAME_S),Darwin)
+	# macOS
+	SHARED_LIB = libdynasm.dylib
+	LDFLAGS = -dynamiclib
+else
+	# Linux and others
+	SHARED_LIB = libdynasm.so
+	LDFLAGS = -shared
+endif
 
-$(DYLIB): dynasm.c dynasm.h
-	$(CC) $(CFLAGS) -dynamiclib -o $@ dynasm.c
+all: $(SHARED_LIB)
 
-# Racket tests
-test: $(DYLIB)
+$(SHARED_LIB): dynasm.c dynasm.h
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ dynasm.c
+
+# Racket tests - runs architecture-appropriate tests
+test: $(SHARED_LIB)
 	raco test .
 
 clean:
-	rm -f $(DYLIB) *.o
+	rm -f libdynasm.dylib libdynasm.so *.o
