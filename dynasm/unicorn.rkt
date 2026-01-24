@@ -23,7 +23,7 @@
         #f)))
 
 (define (find-unicorn-lib)
-  (define versions '("2" "1" #f))
+  (define versions '("2" #f))
 
   ;; Build search paths: pkg-config result first, then standard names
   (define pkg-config-path (pkg-config-libdir "unicorn"))
