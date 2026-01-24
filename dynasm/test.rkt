@@ -70,6 +70,27 @@
     (dynasm-free buf)
     result))
 
+;; ============================================
+;; x64 test helpers
+;; ============================================
+
+(define (run-uc-x64-with-regs code-bytes init-regs)
+  (define CODE-ADDRESS #x1000000)
+  (define uc (uc-create-x64))
+  ;; Map 2MB memory for emulation (similar to C example)
+  (uc-map-memory uc CODE-ADDRESS (* 2 1024 1024))
+  (uc-write-code uc CODE-ADDRESS code-bytes)
+  ;; Set up stack pointer (RIP is set by uc-emulate start address)
+  (uc-reg-write-u64 uc UC_X86_REG_RSP (+ CODE-ADDRESS #x200000))
+  ;; Initialize registers
+  (for ([reg-pair init-regs])
+    (uc-reg-write-u64 uc (car reg-pair) (cdr reg-pair)))
+  (uc-emu-start uc CODE-ADDRESS (sub1 (+ CODE-ADDRESS (bytes-length code-bytes))) 0 0)
+  ;; Read all GP registers
+  (define result (uc-reg-read-u64 uc UC_X86_REG_RAX))
+  (uc-close uc)
+  result)
+
 (define tests
   (test-suite
    "Tests"
@@ -472,6 +493,31 @@
          (emit! buf (aarch64-umov X0 V2 SIMD-4S 0))       ; Extract lane 0
          (emit! buf (aarch64-ret))))
       42))
+
+   (test-case "x64 - register read/write test"
+     (displayln "  x64 reg r/w...")
+     ;; Test that we can set and read registers correctly (no code execution)
+     (define uc (uc-create-x64))
+     (uc-map-memory uc CODE-ADDRESS #x1000)
+     (uc-reg-write-u64 uc UC_X86_REG_RAX 42)
+     (define result (uc-reg-read-u64 uc UC_X86_REG_RAX))
+     (uc-close uc)
+     (check-equal? result 42))
+
+   (test-case "x64 - simple add using dynasm"
+     (displayln "  x64 dynasm add...")
+     ;; Use dynasm to generate the code
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-add-reg RAX RBX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 10)
+                                   (cons UC_X86_REG_RBX 22))))
+     (dynasm-free buf)
+     ;; RAX should contain 10 + 22 = 32
+     (check-equal? result 32))
    ))
 
 (displayln "Running tests...")
