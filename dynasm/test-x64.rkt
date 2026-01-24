@@ -6,7 +6,8 @@
 (require rackunit
          rackunit/text-ui
          ffi/unsafe
-         "dynasm.rkt")
+         "dynasm.rkt"
+         "jit-functions-x64.rkt")
 
 ;; ============================================
 ;; Architecture check - skip tests if not x86_64
@@ -146,13 +147,27 @@
        -42)
       42))))
 
+(define fac-tests
+  (test-suite "factorial tests"
+    (test-case "fac(1)" (check-equal? (jit-factorial 1) 1))
+    (test-case "fac(2)" (check-equal? (jit-factorial 2) 2))
+    (test-case "fac(3)" (check-equal? (jit-factorial 3) 6))
+    (test-case "fac(4)" (check-equal? (jit-factorial 4) 24))
+    (test-case "fac(5)" (check-equal? (jit-factorial 5) 120))
+    (test-case "fac(6)" (check-equal? (jit-factorial 6) 720))
+    ))
+
+(define all-tests
+  (test-suite "All tests"
+    basic-tests
+    fac-tests))
+
 ;; ============================================
 ;; Run all tests
 ;; ============================================
-
 (module+ main
-  (run-tests basic-tests 'verbose))
+  (run-tests all-tests 'verbose))
 
 (module+ test
   (require rackunit/text-ui)
-  (run-tests basic-tests))
+  (run-tests all-tests))

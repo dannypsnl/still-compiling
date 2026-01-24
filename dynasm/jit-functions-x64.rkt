@@ -9,7 +9,8 @@
          "dynasm.rkt")
 
 (provide jit-add
-         jit-mul)
+         jit-mul
+         jit-factorial)
 
 ;; Simple add
 ;; int64_t add(int64_t a, int64_t b)
@@ -30,3 +31,21 @@
     (emit-x64! buf (x64-imul-reg RAX RSI))
     (emit-x64! buf (x64-ret))
     (make-jit-function buf (_fun _int64 _int64 -> _int64))))
+
+(define jit-factorial
+  (let ([buf (dynasm-create 4096)])
+    ;; Factorial: n in RDI
+    ;; result in RAX = 1
+    (emit-x64! buf (x64-mov-imm64 RAX 1))  ; RAX = 1 (accumulator)
+    ;; if n <= 1, return 1
+    (emit-x64! buf (x64-cmp-imm32 RDI 1))  ; compare n with 1
+    (emit-x64! buf (x64-jcc-rel8 CC-LE 8)) ; jump to exit if n <= 1
+    ;; loop:
+    (define loop-start (dynasm-pos buf))
+    (emit-x64! buf (x64-imul-reg RAX RDI)) ; RAX *= n
+    (emit-x64! buf (x64-dec RDI))          ; n--
+    (emit-x64! buf (x64-cmp-imm32 RDI 1))  ; compare n with 1
+    (emit-x64! buf (x64-jcc-rel8 CC-G (- loop-start (+ (dynasm-pos buf) 2))))
+    ;; return result in RAX
+    (emit-x64! buf (x64-ret))
+    (make-jit-function buf (_fun _int64 -> _int64))))
