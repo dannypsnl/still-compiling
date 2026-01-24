@@ -4,9 +4,10 @@
 
 (require "common.rkt"
          "../jit-functions.rkt")
-(require math/number-theory)
+(require racket/format
+         math/number-theory)
 
-(provide run-scalar-benchmarks)
+(provide run-numeric-benchmarks)
 
 ;; ============================================
 ;; Native Racket functions
@@ -19,7 +20,7 @@
 ;; Run benchmarks
 ;; ============================================
 
-(define (run-scalar-benchmarks)
+(define (run-numeric-benchmarks)
   (printf "============================================\n")
   (printf "Scalar JIT vs Native Racket\n")
   (printf "============================================\n")
@@ -48,4 +49,4 @@
 
 ;; Run if executed directly
 (module+ main
-  (run-scalar-benchmarks))
+  (run-numeric-benchmarks))

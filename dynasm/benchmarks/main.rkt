@@ -13,7 +13,7 @@
 (printf "\nRunning all benchmarks...\n")
 
 ;; Run all benchmark suites
-(run-scalar-benchmarks)
+(run-numeric-benchmarks)
 (run-array-benchmarks)
 (run-simd-benchmarks)
 

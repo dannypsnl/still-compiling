@@ -4,16 +4,13 @@
 
 (require ffi/unsafe
          ffi/vector
+         racket/format
          "../dynasm.rkt")
 
 (provide (all-defined-out)
          (all-from-out "../dynasm.rkt")
          (all-from-out ffi/unsafe)
          (all-from-out ffi/vector))
-
-;; Formatting helper
-(define (~r n #:precision [p 2])
-  (real->decimal-string n p))
 
 ;; Memory allocation
 (define posix-memalign

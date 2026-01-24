@@ -2,7 +2,8 @@
 
 ;;; SIMD Benchmarks - SIMD JIT vs Native Racket vectors
 
-(require "common.rkt")
+(require racket/format
+         "common.rkt")
 
 (provide run-simd-benchmarks)
 

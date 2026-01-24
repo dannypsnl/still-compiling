@@ -2,7 +2,8 @@
 
 ;;; Array Operation Benchmarks (Scalar JIT vs Racket lists/vectors)
 
-(require "common.rkt")
+(require racket/format
+         "common.rkt")
 
 (provide run-array-benchmarks)
 
