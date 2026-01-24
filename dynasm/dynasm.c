@@ -131,7 +131,6 @@ void *dynasm_finalize(dynasm_buffer_t *buf) {
 #else
   // Other platforms: switch from writable to executable (W^X compliance)
   if (mprotect(buf->code, buf->capacity, PROT_READ | PROT_EXEC) != 0) {
-    perror("mprotect failed");
     munmap(buf->code, buf->size); // Cleanup on failure
     return NULL;
   }
