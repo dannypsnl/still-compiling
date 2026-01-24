@@ -375,16 +375,22 @@
          (emit! buf (aarch64-ret))))
       42))
 
-   ;; TODO: tst_imm test - needs investigation of flag behavior
-   ;; (test-case "tst_imm - test bits immediate"
-   ;;   (displayln "  tst_imm...")
-   ;;   (check-equal?
-   ;;    (run-uc-void
-   ;;     (lambda (buf)
-   ;;       (emit! buf (aarch64-movz X0 #xFE 0))
-   ;;       (emit! buf (aarch64-tst-imm X0 1))
-   ;;       (emit! buf (aarch64-ret))))
-   ;;    #xFE))
+   (test-case "tst_imm - test bits immediate"
+     (displayln "  tst_imm...")
+     ;; TST sets flags without writing to a register
+     ;; Test if bit 0 is set: 0xFE & 1 = 0, so Z flag is set, NE condition is false
+     ;; If bit not set (Z=1), return 42, else return 99
+     (check-equal?
+      (run-uc-void
+       (lambda (buf)
+         (emit! buf (aarch64-movz X0 #xFE 0))  ; X0 = 0xFE (even, bit 0 clear)
+         (emit! buf (aarch64-tst-imm X0 1))    ; Test bit 0, sets Z flag
+         (emit! buf (aarch64-b-cond COND-NE 2)) ; If NE (bit was set), skip
+         (emit! buf (aarch64-movz X0 42 0))    ; Bit not set, return 42
+         (emit! buf (aarch64-ret))
+         (emit! buf (aarch64-movz X0 99 0))    ; Bit was set, return 99
+         (emit! buf (aarch64-ret))))
+      42))
 
    (test-case "rbit - reverse bits"
      (displayln "  rbit...")
@@ -410,9 +416,7 @@
          (emit! buf (aarch64-ret))))
       42))
 
-   ;; TODO: stp/ldp test - needs investigation
-   ;; For now, test using individual STR/LDR which we know work
-   (test-case "store/load two values"
+   (test-case "store/load two values (pair functionality)"
      (displayln "  str/ldr pair...")
      (check-equal?
       (run-uc-void
@@ -429,17 +433,45 @@
          (emit! buf (aarch64-ret))))
       30))
 
-   ;; TODO: SIMD/NEON tests - Unicorn throws CPU exception on SIMD instructions
-   ;; Need to investigate if Unicorn supports SIMD or if encoding is incorrect
-   ;; (test-case "movi - move immediate to vector"
-   ;;   (displayln "  movi...")
-   ;;   (check-equal?
-   ;;    (run-uc-void
-   ;;     (lambda (buf)
-   ;;       (emit! buf (aarch64-movi V0 42 SIMD-4S))
-   ;;       (emit! buf (aarch64-umov X0 V0 SIMD-4S 0))
-   ;;       (emit! buf (aarch64-ret))))
-   ;;    42))
+   (test-case "fmov - move between GP and SIMD registers"
+     (displayln "  fmov...")
+     ;; Simple test: move data from GP to SIMD and back
+     (check-equal?
+      (run-uc-void
+       (lambda (buf)
+         (emit! buf (aarch64-movz X0 42 0))
+         (emit! buf (aarch64-fmov-gp-to-vec V0 X0))  ; Move X0 -> V0
+         (emit! buf (aarch64-movz X0 0 0))           ; Clear X0
+         (emit! buf (aarch64-fmov-vec-to-gp X0 V0))  ; Move V0 -> X0
+         (emit! buf (aarch64-ret))))
+      42))
+
+   (test-case "dup/umov - SIMD element operations"
+     (displayln "  dup/umov...")
+     ;; DUP a GP register to all SIMD lanes, then extract one lane
+     (check-equal?
+      (run-uc-void
+       (lambda (buf)
+         (emit! buf (aarch64-movz X1 42 0))
+         (emit! buf (aarch64-dup-general V0 X1 SIMD-4S))  ; Duplicate X1 to all lanes of V0
+         (emit! buf (aarch64-umov X0 V0 SIMD-4S 0))       ; Extract lane 0 to X0
+         (emit! buf (aarch64-ret))))
+      42))
+
+   (test-case "add_simd - SIMD vector addition"
+     (displayln "  add_simd...")
+     ;; Add two vectors and extract result
+     (check-equal?
+      (run-uc-void
+       (lambda (buf)
+         (emit! buf (aarch64-movz X1 10 0))
+         (emit! buf (aarch64-movz X2 32 0))
+         (emit! buf (aarch64-dup-general V0 X1 SIMD-4S))  ; V0 = [10,10,10,10]
+         (emit! buf (aarch64-dup-general V1 X2 SIMD-4S))  ; V1 = [32,32,32,32]
+         (emit! buf (aarch64-add-simd V2 V0 V1 SIMD-4S))  ; V2 = V0 + V1
+         (emit! buf (aarch64-umov X0 V2 SIMD-4S 0))       ; Extract lane 0
+         (emit! buf (aarch64-ret))))
+      42))
    ))
 
 (displayln "Running tests...")
