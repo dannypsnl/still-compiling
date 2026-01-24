@@ -140,6 +140,22 @@ void *dynasm_finalize(dynasm_buffer_t *buf) {
   return buf->code;
 }
 
+void dynasm_emit_x64(dynasm_buffer_t *buf, x64_insn_t insn) {
+  if (buf->size + insn.len > buf->capacity)
+    return;
+
+#ifdef __APPLE__
+  pthread_jit_write_protect_np(0);
+#endif
+
+  memcpy(buf->code + buf->size, insn.bytes, insn.len);
+  buf->size += insn.len;
+
+#ifdef __APPLE__
+  pthread_jit_write_protect_np(1);
+#endif
+}
+
 // ============================================
 // AArch64 instruction encoders
 // ============================================
@@ -772,371 +788,503 @@ static inline uint8_t x64_sib(int scale, int index, int base) {
   return ((scale & 0x3) << 6) | ((index & 0x7) << 3) | (base & 0x7);
 }
 
+// Helper: write 32-bit value to byte array (little-endian)
+static inline void x64_write32(uint8_t *p, uint32_t val) {
+  p[0] = (uint8_t)(val);
+  p[1] = (uint8_t)(val >> 8);
+  p[2] = (uint8_t)(val >> 16);
+  p[3] = (uint8_t)(val >> 24);
+}
+
+// Helper: write 64-bit value to byte array (little-endian)
+static inline void x64_write64(uint8_t *p, uint64_t val) {
+  p[0] = (uint8_t)(val);
+  p[1] = (uint8_t)(val >> 8);
+  p[2] = (uint8_t)(val >> 16);
+  p[3] = (uint8_t)(val >> 24);
+  p[4] = (uint8_t)(val >> 32);
+  p[5] = (uint8_t)(val >> 40);
+  p[6] = (uint8_t)(val >> 48);
+  p[7] = (uint8_t)(val >> 56);
+}
+
 // MOV r64, imm64 (REX.W + B8+rd + imm64)
-void x64_mov_imm64(dynasm_buffer_t *buf, int rd, uint64_t imm64) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0xB8 + (rd & 0x7));
-  dynasm_emit64(buf, imm64);
+x64_insn_t x64_mov_imm64(int rd, uint64_t imm64) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0xB8 + (rd & 0x7);
+  x64_write64(&insn.bytes[2], imm64);
+  insn.len = 10;
+  return insn;
 }
 
 // MOV r64, imm32 (sign-extended: REX.W + C7 /0 + imm32)
-void x64_mov_imm32(dynasm_buffer_t *buf, int rd, int32_t imm32) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0xC7);
-  dynasm_emit8(buf, x64_modrm(3, 0, rd & 0x7));
-  dynasm_emit32(buf, (uint32_t)imm32);
+x64_insn_t x64_mov_imm32(int rd, int32_t imm32) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0xC7;
+  insn.bytes[2] = x64_modrm(3, 0, rd & 0x7);
+  x64_write32(&insn.bytes[3], (uint32_t)imm32);
+  insn.len = 7;
+  return insn;
 }
 
 // MOV r64, r64 (REX.W + 89 + ModRM)
-// 89 /r: MOV r/m64, r64
-void x64_mov_reg(dynasm_buffer_t *buf, int rd, int rs) {
-  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x89);
-  dynasm_emit8(buf, x64_modrm(3, rs & 0x7, rd & 0x7));
+x64_insn_t x64_mov_reg(int rd, int rs) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0x89;
+  insn.bytes[2] = x64_modrm(3, rs & 0x7, rd & 0x7);
+  insn.len = 3;
+  return insn;
 }
 
 // MOV r64, [r64] (8B /r: MOV r64, r/m64)
-void x64_mov_rm(dynasm_buffer_t *buf, int rd, int base) {
-  uint8_t rex = x64_rex(1, (rd >> 3) & 1, 0, (base >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x8B);
-  // Handle special cases for RSP (need SIB) and RBP (need disp8)
+x64_insn_t x64_mov_rm(int rd, int base) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, (rd >> 3) & 1, 0, (base >> 3) & 1);
+  insn.bytes[1] = 0x8B;
   if ((base & 0x7) == 4) {
     // RSP/R12 requires SIB byte
-    dynasm_emit8(buf, x64_modrm(0, rd & 0x7, 4));
-    dynasm_emit8(buf, x64_sib(0, 4, 4)); // SIB: no scale, no index, RSP base
+    insn.bytes[2] = x64_modrm(0, rd & 0x7, 4);
+    insn.bytes[3] = x64_sib(0, 4, 4);
+    insn.len = 4;
   } else if ((base & 0x7) == 5) {
     // RBP/R13 requires disp8 for mod=00
-    dynasm_emit8(buf, x64_modrm(1, rd & 0x7, base & 0x7));
-    dynasm_emit8(buf, 0); // disp8 = 0
+    insn.bytes[2] = x64_modrm(1, rd & 0x7, base & 0x7);
+    insn.bytes[3] = 0;
+    insn.len = 4;
   } else {
-    dynasm_emit8(buf, x64_modrm(0, rd & 0x7, base & 0x7));
+    insn.bytes[2] = x64_modrm(0, rd & 0x7, base & 0x7);
+    insn.len = 3;
   }
+  return insn;
 }
 
 // MOV r64, [r64 + disp32]
-void x64_mov_rm_disp32(dynasm_buffer_t *buf, int rd, int base, int32_t disp) {
-  uint8_t rex = x64_rex(1, (rd >> 3) & 1, 0, (base >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x8B);
+x64_insn_t x64_mov_rm_disp32(int rd, int base, int32_t disp) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, (rd >> 3) & 1, 0, (base >> 3) & 1);
+  insn.bytes[1] = 0x8B;
   if ((base & 0x7) == 4) {
     // RSP/R12 requires SIB byte
-    dynasm_emit8(buf, x64_modrm(2, rd & 0x7, 4));
-    dynasm_emit8(buf, x64_sib(0, 4, 4));
+    insn.bytes[2] = x64_modrm(2, rd & 0x7, 4);
+    insn.bytes[3] = x64_sib(0, 4, 4);
+    x64_write32(&insn.bytes[4], (uint32_t)disp);
+    insn.len = 8;
   } else {
-    dynasm_emit8(buf, x64_modrm(2, rd & 0x7, base & 0x7));
+    insn.bytes[2] = x64_modrm(2, rd & 0x7, base & 0x7);
+    x64_write32(&insn.bytes[3], (uint32_t)disp);
+    insn.len = 7;
   }
-  dynasm_emit32(buf, (uint32_t)disp);
+  return insn;
 }
 
 // MOV [r64], r64 (89 /r: MOV r/m64, r64)
-void x64_mov_mr(dynasm_buffer_t *buf, int base, int rs) {
-  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (base >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x89);
+x64_insn_t x64_mov_mr(int base, int rs) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, (rs >> 3) & 1, 0, (base >> 3) & 1);
+  insn.bytes[1] = 0x89;
   if ((base & 0x7) == 4) {
-    dynasm_emit8(buf, x64_modrm(0, rs & 0x7, 4));
-    dynasm_emit8(buf, x64_sib(0, 4, 4));
+    insn.bytes[2] = x64_modrm(0, rs & 0x7, 4);
+    insn.bytes[3] = x64_sib(0, 4, 4);
+    insn.len = 4;
   } else if ((base & 0x7) == 5) {
-    dynasm_emit8(buf, x64_modrm(1, rs & 0x7, base & 0x7));
-    dynasm_emit8(buf, 0);
+    insn.bytes[2] = x64_modrm(1, rs & 0x7, base & 0x7);
+    insn.bytes[3] = 0;
+    insn.len = 4;
   } else {
-    dynasm_emit8(buf, x64_modrm(0, rs & 0x7, base & 0x7));
+    insn.bytes[2] = x64_modrm(0, rs & 0x7, base & 0x7);
+    insn.len = 3;
   }
+  return insn;
 }
 
 // MOV [r64 + disp32], r64
-void x64_mov_mr_disp32(dynasm_buffer_t *buf, int base, int32_t disp, int rs) {
-  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (base >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x89);
+x64_insn_t x64_mov_mr_disp32(int base, int32_t disp, int rs) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, (rs >> 3) & 1, 0, (base >> 3) & 1);
+  insn.bytes[1] = 0x89;
   if ((base & 0x7) == 4) {
-    dynasm_emit8(buf, x64_modrm(2, rs & 0x7, 4));
-    dynasm_emit8(buf, x64_sib(0, 4, 4));
+    insn.bytes[2] = x64_modrm(2, rs & 0x7, 4);
+    insn.bytes[3] = x64_sib(0, 4, 4);
+    x64_write32(&insn.bytes[4], (uint32_t)disp);
+    insn.len = 8;
   } else {
-    dynasm_emit8(buf, x64_modrm(2, rs & 0x7, base & 0x7));
+    insn.bytes[2] = x64_modrm(2, rs & 0x7, base & 0x7);
+    x64_write32(&insn.bytes[3], (uint32_t)disp);
+    insn.len = 7;
   }
-  dynasm_emit32(buf, (uint32_t)disp);
+  return insn;
 }
 
 // ADD r64, r64 (REX.W + 01 /r)
-void x64_add_reg(dynasm_buffer_t *buf, int rd, int rs) {
-  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x01);
-  dynasm_emit8(buf, x64_modrm(3, rs & 0x7, rd & 0x7));
+x64_insn_t x64_add_reg(int rd, int rs) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0x01;
+  insn.bytes[2] = x64_modrm(3, rs & 0x7, rd & 0x7);
+  insn.len = 3;
+  return insn;
 }
 
 // ADD r64, imm32 (REX.W + 81 /0)
-void x64_add_imm32(dynasm_buffer_t *buf, int rd, int32_t imm) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x81);
-  dynasm_emit8(buf, x64_modrm(3, 0, rd & 0x7));
-  dynasm_emit32(buf, (uint32_t)imm);
+x64_insn_t x64_add_imm32(int rd, int32_t imm) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0x81;
+  insn.bytes[2] = x64_modrm(3, 0, rd & 0x7);
+  x64_write32(&insn.bytes[3], (uint32_t)imm);
+  insn.len = 7;
+  return insn;
 }
 
 // ADD r64, imm8 (REX.W + 83 /0)
-void x64_add_imm8(dynasm_buffer_t *buf, int rd, int8_t imm) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x83);
-  dynasm_emit8(buf, x64_modrm(3, 0, rd & 0x7));
-  dynasm_emit8(buf, (uint8_t)imm);
+x64_insn_t x64_add_imm8(int rd, int8_t imm) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0x83;
+  insn.bytes[2] = x64_modrm(3, 0, rd & 0x7);
+  insn.bytes[3] = (uint8_t)imm;
+  insn.len = 4;
+  return insn;
 }
 
 // SUB r64, r64 (REX.W + 29 /r)
-void x64_sub_reg(dynasm_buffer_t *buf, int rd, int rs) {
-  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x29);
-  dynasm_emit8(buf, x64_modrm(3, rs & 0x7, rd & 0x7));
+x64_insn_t x64_sub_reg(int rd, int rs) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0x29;
+  insn.bytes[2] = x64_modrm(3, rs & 0x7, rd & 0x7);
+  insn.len = 3;
+  return insn;
 }
 
 // SUB r64, imm32 (REX.W + 81 /5)
-void x64_sub_imm32(dynasm_buffer_t *buf, int rd, int32_t imm) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x81);
-  dynasm_emit8(buf, x64_modrm(3, 5, rd & 0x7));
-  dynasm_emit32(buf, (uint32_t)imm);
+x64_insn_t x64_sub_imm32(int rd, int32_t imm) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0x81;
+  insn.bytes[2] = x64_modrm(3, 5, rd & 0x7);
+  x64_write32(&insn.bytes[3], (uint32_t)imm);
+  insn.len = 7;
+  return insn;
 }
 
 // SUB r64, imm8 (REX.W + 83 /5)
-void x64_sub_imm8(dynasm_buffer_t *buf, int rd, int8_t imm) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x83);
-  dynasm_emit8(buf, x64_modrm(3, 5, rd & 0x7));
-  dynasm_emit8(buf, (uint8_t)imm);
+x64_insn_t x64_sub_imm8(int rd, int8_t imm) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0x83;
+  insn.bytes[2] = x64_modrm(3, 5, rd & 0x7);
+  insn.bytes[3] = (uint8_t)imm;
+  insn.len = 4;
+  return insn;
 }
 
 // IMUL r64, r64 (REX.W + 0F AF /r)
-void x64_imul_reg(dynasm_buffer_t *buf, int rd, int rs) {
-  uint8_t rex = x64_rex(1, (rd >> 3) & 1, 0, (rs >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x0F);
-  dynasm_emit8(buf, 0xAF);
-  dynasm_emit8(buf, x64_modrm(3, rd & 0x7, rs & 0x7));
+x64_insn_t x64_imul_reg(int rd, int rs) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, (rd >> 3) & 1, 0, (rs >> 3) & 1);
+  insn.bytes[1] = 0x0F;
+  insn.bytes[2] = 0xAF;
+  insn.bytes[3] = x64_modrm(3, rd & 0x7, rs & 0x7);
+  insn.len = 4;
+  return insn;
 }
 
 // IMUL r64, r64, imm32 (REX.W + 69 /r)
-void x64_imul_imm32(dynasm_buffer_t *buf, int rd, int rs, int32_t imm) {
-  uint8_t rex = x64_rex(1, (rd >> 3) & 1, 0, (rs >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x69);
-  dynasm_emit8(buf, x64_modrm(3, rd & 0x7, rs & 0x7));
-  dynasm_emit32(buf, (uint32_t)imm);
+x64_insn_t x64_imul_imm32(int rd, int rs, int32_t imm) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, (rd >> 3) & 1, 0, (rs >> 3) & 1);
+  insn.bytes[1] = 0x69;
+  insn.bytes[2] = x64_modrm(3, rd & 0x7, rs & 0x7);
+  x64_write32(&insn.bytes[3], (uint32_t)imm);
+  insn.len = 7;
+  return insn;
 }
 
 // IDIV r64 (REX.W + F7 /7)
-void x64_idiv_reg(dynasm_buffer_t *buf, int rs) {
-  uint8_t rex = x64_rex(1, 0, 0, (rs >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0xF7);
-  dynasm_emit8(buf, x64_modrm(3, 7, rs & 0x7));
+x64_insn_t x64_idiv_reg(int rs) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rs >> 3) & 1);
+  insn.bytes[1] = 0xF7;
+  insn.bytes[2] = x64_modrm(3, 7, rs & 0x7);
+  insn.len = 3;
+  return insn;
 }
 
 // CQO (REX.W + 99): sign-extend RAX into RDX:RAX
-void x64_cqo(dynasm_buffer_t *buf) {
-  dynasm_emit8(buf, 0x48); // REX.W
-  dynasm_emit8(buf, 0x99);
+x64_insn_t x64_cqo(void) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = 0x48; // REX.W
+  insn.bytes[1] = 0x99;
+  insn.len = 2;
+  return insn;
 }
 
 // SHL r64, imm8 (REX.W + C1 /4)
-void x64_shl_imm(dynasm_buffer_t *buf, int rd, uint8_t imm) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0xC1);
-  dynasm_emit8(buf, x64_modrm(3, 4, rd & 0x7));
-  dynasm_emit8(buf, imm);
+x64_insn_t x64_shl_imm(int rd, uint8_t imm) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0xC1;
+  insn.bytes[2] = x64_modrm(3, 4, rd & 0x7);
+  insn.bytes[3] = imm;
+  insn.len = 4;
+  return insn;
 }
 
 // SHL r64, CL (REX.W + D3 /4)
-void x64_shl_cl(dynasm_buffer_t *buf, int rd) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0xD3);
-  dynasm_emit8(buf, x64_modrm(3, 4, rd & 0x7));
+x64_insn_t x64_shl_cl(int rd) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0xD3;
+  insn.bytes[2] = x64_modrm(3, 4, rd & 0x7);
+  insn.len = 3;
+  return insn;
 }
 
 // SHR r64, imm8 (REX.W + C1 /5)
-void x64_shr_imm(dynasm_buffer_t *buf, int rd, uint8_t imm) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0xC1);
-  dynasm_emit8(buf, x64_modrm(3, 5, rd & 0x7));
-  dynasm_emit8(buf, imm);
+x64_insn_t x64_shr_imm(int rd, uint8_t imm) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0xC1;
+  insn.bytes[2] = x64_modrm(3, 5, rd & 0x7);
+  insn.bytes[3] = imm;
+  insn.len = 4;
+  return insn;
 }
 
 // SHR r64, CL (REX.W + D3 /5)
-void x64_shr_cl(dynasm_buffer_t *buf, int rd) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0xD3);
-  dynasm_emit8(buf, x64_modrm(3, 5, rd & 0x7));
+x64_insn_t x64_shr_cl(int rd) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0xD3;
+  insn.bytes[2] = x64_modrm(3, 5, rd & 0x7);
+  insn.len = 3;
+  return insn;
 }
 
 // SAR r64, imm8 (REX.W + C1 /7)
-void x64_sar_imm(dynasm_buffer_t *buf, int rd, uint8_t imm) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0xC1);
-  dynasm_emit8(buf, x64_modrm(3, 7, rd & 0x7));
-  dynasm_emit8(buf, imm);
+x64_insn_t x64_sar_imm(int rd, uint8_t imm) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0xC1;
+  insn.bytes[2] = x64_modrm(3, 7, rd & 0x7);
+  insn.bytes[3] = imm;
+  insn.len = 4;
+  return insn;
 }
 
 // SAR r64, CL (REX.W + D3 /7)
-void x64_sar_cl(dynasm_buffer_t *buf, int rd) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0xD3);
-  dynasm_emit8(buf, x64_modrm(3, 7, rd & 0x7));
+x64_insn_t x64_sar_cl(int rd) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0xD3;
+  insn.bytes[2] = x64_modrm(3, 7, rd & 0x7);
+  insn.len = 3;
+  return insn;
 }
 
 // CMP r64, r64 (REX.W + 39 /r)
-void x64_cmp_reg(dynasm_buffer_t *buf, int r1, int r2) {
-  uint8_t rex = x64_rex(1, (r2 >> 3) & 1, 0, (r1 >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x39);
-  dynasm_emit8(buf, x64_modrm(3, r2 & 0x7, r1 & 0x7));
+x64_insn_t x64_cmp_reg(int r1, int r2) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, (r2 >> 3) & 1, 0, (r1 >> 3) & 1);
+  insn.bytes[1] = 0x39;
+  insn.bytes[2] = x64_modrm(3, r2 & 0x7, r1 & 0x7);
+  insn.len = 3;
+  return insn;
 }
 
 // CMP r64, imm32 (REX.W + 81 /7)
-void x64_cmp_imm32(dynasm_buffer_t *buf, int rd, int32_t imm) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x81);
-  dynasm_emit8(buf, x64_modrm(3, 7, rd & 0x7));
-  dynasm_emit32(buf, (uint32_t)imm);
+x64_insn_t x64_cmp_imm32(int rd, int32_t imm) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0x81;
+  insn.bytes[2] = x64_modrm(3, 7, rd & 0x7);
+  x64_write32(&insn.bytes[3], (uint32_t)imm);
+  insn.len = 7;
+  return insn;
 }
 
 // CMP r64, imm8 (REX.W + 83 /7)
-void x64_cmp_imm8(dynasm_buffer_t *buf, int rd, int8_t imm) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x83);
-  dynasm_emit8(buf, x64_modrm(3, 7, rd & 0x7));
-  dynasm_emit8(buf, (uint8_t)imm);
+x64_insn_t x64_cmp_imm8(int rd, int8_t imm) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0x83;
+  insn.bytes[2] = x64_modrm(3, 7, rd & 0x7);
+  insn.bytes[3] = (uint8_t)imm;
+  insn.len = 4;
+  return insn;
 }
 
 // TEST r64, r64 (REX.W + 85 /r)
-void x64_test_reg(dynasm_buffer_t *buf, int r1, int r2) {
-  uint8_t rex = x64_rex(1, (r2 >> 3) & 1, 0, (r1 >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x85);
-  dynasm_emit8(buf, x64_modrm(3, r2 & 0x7, r1 & 0x7));
+x64_insn_t x64_test_reg(int r1, int r2) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, (r2 >> 3) & 1, 0, (r1 >> 3) & 1);
+  insn.bytes[1] = 0x85;
+  insn.bytes[2] = x64_modrm(3, r2 & 0x7, r1 & 0x7);
+  insn.len = 3;
+  return insn;
 }
 
 // JMP rel32 (E9 + rel32)
-void x64_jmp_rel32(dynasm_buffer_t *buf, int32_t rel) {
-  dynasm_emit8(buf, 0xE9);
-  dynasm_emit32(buf, (uint32_t)rel);
+x64_insn_t x64_jmp_rel32(int32_t rel) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = 0xE9;
+  x64_write32(&insn.bytes[1], (uint32_t)rel);
+  insn.len = 5;
+  return insn;
 }
 
 // JMP rel8 (EB + rel8)
-void x64_jmp_rel8(dynasm_buffer_t *buf, int8_t rel) {
-  dynasm_emit8(buf, 0xEB);
-  dynasm_emit8(buf, (uint8_t)rel);
+x64_insn_t x64_jmp_rel8(int8_t rel) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = 0xEB;
+  insn.bytes[1] = (uint8_t)rel;
+  insn.len = 2;
+  return insn;
 }
 
 // Jcc rel32 (0F 8x + rel32)
-void x64_jcc_rel32(dynasm_buffer_t *buf, int cc, int32_t rel) {
-  dynasm_emit8(buf, 0x0F);
-  dynasm_emit8(buf, 0x80 + (cc & 0xF));
-  dynasm_emit32(buf, (uint32_t)rel);
+x64_insn_t x64_jcc_rel32(int cc, int32_t rel) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = 0x0F;
+  insn.bytes[1] = 0x80 + (cc & 0xF);
+  x64_write32(&insn.bytes[2], (uint32_t)rel);
+  insn.len = 6;
+  return insn;
 }
 
 // Jcc rel8 (7x + rel8)
-void x64_jcc_rel8(dynasm_buffer_t *buf, int cc, int8_t rel) {
-  dynasm_emit8(buf, 0x70 + (cc & 0xF));
-  dynasm_emit8(buf, (uint8_t)rel);
+x64_insn_t x64_jcc_rel8(int cc, int8_t rel) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = 0x70 + (cc & 0xF);
+  insn.bytes[1] = (uint8_t)rel;
+  insn.len = 2;
+  return insn;
 }
 
 // CALL rel32 (E8 + rel32)
-void x64_call_rel32(dynasm_buffer_t *buf, int32_t rel) {
-  dynasm_emit8(buf, 0xE8);
-  dynasm_emit32(buf, (uint32_t)rel);
+x64_insn_t x64_call_rel32(int32_t rel) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = 0xE8;
+  x64_write32(&insn.bytes[1], (uint32_t)rel);
+  insn.len = 5;
+  return insn;
 }
 
 // RET (C3)
-void x64_ret(dynasm_buffer_t *buf) { dynasm_emit8(buf, 0xC3); }
+x64_insn_t x64_ret(void) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = 0xC3;
+  insn.len = 1;
+  return insn;
+}
 
 // PUSH r64 (50+rd or REX + 50+rd for R8-R15)
-void x64_push(dynasm_buffer_t *buf, int reg) {
+x64_insn_t x64_push(int reg) {
+  x64_insn_t insn = {0};
   if (reg >= 8) {
-    dynasm_emit8(buf, x64_rex(0, 0, 0, 1));
+    insn.bytes[0] = x64_rex(0, 0, 0, 1);
+    insn.bytes[1] = 0x50 + (reg & 0x7);
+    insn.len = 2;
+  } else {
+    insn.bytes[0] = 0x50 + (reg & 0x7);
+    insn.len = 1;
   }
-  dynasm_emit8(buf, 0x50 + (reg & 0x7));
+  return insn;
 }
 
 // POP r64 (58+rd or REX + 58+rd for R8-R15)
-void x64_pop(dynasm_buffer_t *buf, int reg) {
+x64_insn_t x64_pop(int reg) {
+  x64_insn_t insn = {0};
   if (reg >= 8) {
-    dynasm_emit8(buf, x64_rex(0, 0, 0, 1));
+    insn.bytes[0] = x64_rex(0, 0, 0, 1);
+    insn.bytes[1] = 0x58 + (reg & 0x7);
+    insn.len = 2;
+  } else {
+    insn.bytes[0] = 0x58 + (reg & 0x7);
+    insn.len = 1;
   }
-  dynasm_emit8(buf, 0x58 + (reg & 0x7));
+  return insn;
 }
 
 // NOP (90)
-void x64_nop(dynasm_buffer_t *buf) { dynasm_emit8(buf, 0x90); }
+x64_insn_t x64_nop(void) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = 0x90;
+  insn.len = 1;
+  return insn;
+}
 
 // NEG r64 (REX.W + F7 /3)
-void x64_neg(dynasm_buffer_t *buf, int rd) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0xF7);
-  dynasm_emit8(buf, x64_modrm(3, 3, rd & 0x7));
+x64_insn_t x64_neg(int rd) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0xF7;
+  insn.bytes[2] = x64_modrm(3, 3, rd & 0x7);
+  insn.len = 3;
+  return insn;
 }
 
 // AND r64, r64 (REX.W + 21 /r)
-void x64_and_reg(dynasm_buffer_t *buf, int rd, int rs) {
-  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x21);
-  dynasm_emit8(buf, x64_modrm(3, rs & 0x7, rd & 0x7));
+x64_insn_t x64_and_reg(int rd, int rs) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0x21;
+  insn.bytes[2] = x64_modrm(3, rs & 0x7, rd & 0x7);
+  insn.len = 3;
+  return insn;
 }
 
 // AND r64, imm32 (REX.W + 81 /4)
-void x64_and_imm32(dynasm_buffer_t *buf, int rd, int32_t imm) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x81);
-  dynasm_emit8(buf, x64_modrm(3, 4, rd & 0x7));
-  dynasm_emit32(buf, (uint32_t)imm);
+x64_insn_t x64_and_imm32(int rd, int32_t imm) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0x81;
+  insn.bytes[2] = x64_modrm(3, 4, rd & 0x7);
+  x64_write32(&insn.bytes[3], (uint32_t)imm);
+  insn.len = 7;
+  return insn;
 }
 
 // OR r64, r64 (REX.W + 09 /r)
-void x64_or_reg(dynasm_buffer_t *buf, int rd, int rs) {
-  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x09);
-  dynasm_emit8(buf, x64_modrm(3, rs & 0x7, rd & 0x7));
+x64_insn_t x64_or_reg(int rd, int rs) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0x09;
+  insn.bytes[2] = x64_modrm(3, rs & 0x7, rd & 0x7);
+  insn.len = 3;
+  return insn;
 }
 
 // XOR r64, r64 (REX.W + 31 /r)
-void x64_xor_reg(dynasm_buffer_t *buf, int rd, int rs) {
-  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0x31);
-  dynasm_emit8(buf, x64_modrm(3, rs & 0x7, rd & 0x7));
+x64_insn_t x64_xor_reg(int rd, int rs) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0x31;
+  insn.bytes[2] = x64_modrm(3, rs & 0x7, rd & 0x7);
+  insn.len = 3;
+  return insn;
 }
 
 // INC r64 (REX.W + FF /0)
-void x64_inc(dynasm_buffer_t *buf, int rd) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0xFF);
-  dynasm_emit8(buf, x64_modrm(3, 0, rd & 0x7));
+x64_insn_t x64_inc(int rd) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0xFF;
+  insn.bytes[2] = x64_modrm(3, 0, rd & 0x7);
+  insn.len = 3;
+  return insn;
 }
 
 // DEC r64 (REX.W + FF /1)
-void x64_dec(dynasm_buffer_t *buf, int rd) {
-  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
-  dynasm_emit8(buf, rex);
-  dynasm_emit8(buf, 0xFF);
-  dynasm_emit8(buf, x64_modrm(3, 1, rd & 0x7));
+x64_insn_t x64_dec(int rd) {
+  x64_insn_t insn = {0};
+  insn.bytes[0] = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  insn.bytes[1] = 0xFF;
+  insn.bytes[2] = x64_modrm(3, 1, rd & 0x7);
+  insn.len = 3;
+  return insn;
 }

@@ -350,222 +350,236 @@
   #:c-id aarch64_eor_simd)
 
 ;; ============================================
+;; x64 instruction type and emitter
+;; ============================================
+
+;; x64_insn_t struct: 15 bytes + 1 byte length
+(define-cstruct _x64-insn
+  ([bytes (_array _uint8 15)]
+   [len _uint8]))
+
+;; Emit x64 instruction to buffer
+(define-dynasm dynasm-emit-x64
+  (_fun _dynasm-buffer _x64-insn -> _void)
+  #:c-id dynasm_emit_x64)
+
+;; ============================================
 ;; x64 instruction encoders
 ;; ============================================
 
 ;; MOV r64, imm64
 (define-dynasm x64-mov-imm64
-  (_fun _dynasm-buffer _int _uint64 -> _void)
+  (_fun _int _uint64 -> _x64-insn)
   #:c-id x64_mov_imm64)
 
 ;; MOV r64, imm32 (sign-extended)
 (define-dynasm x64-mov-imm32
-  (_fun _dynasm-buffer _int _int32 -> _void)
+  (_fun _int _int32 -> _x64-insn)
   #:c-id x64_mov_imm32)
 
 ;; MOV r64, r64
 (define-dynasm x64-mov-reg
-  (_fun _dynasm-buffer _int _int -> _void)
+  (_fun _int _int -> _x64-insn)
   #:c-id x64_mov_reg)
 
 ;; MOV r64, [r64]
 (define-dynasm x64-mov-rm
-  (_fun _dynasm-buffer _int _int -> _void)
+  (_fun _int _int -> _x64-insn)
   #:c-id x64_mov_rm)
 
 ;; MOV r64, [r64 + disp32]
 (define-dynasm x64-mov-rm-disp32
-  (_fun _dynasm-buffer _int _int _int32 -> _void)
+  (_fun _int _int _int32 -> _x64-insn)
   #:c-id x64_mov_rm_disp32)
 
 ;; MOV [r64], r64
 (define-dynasm x64-mov-mr
-  (_fun _dynasm-buffer _int _int -> _void)
+  (_fun _int _int -> _x64-insn)
   #:c-id x64_mov_mr)
 
 ;; MOV [r64 + disp32], r64
 (define-dynasm x64-mov-mr-disp32
-  (_fun _dynasm-buffer _int _int32 _int -> _void)
+  (_fun _int _int32 _int -> _x64-insn)
   #:c-id x64_mov_mr_disp32)
 
 ;; ADD r64, r64
 (define-dynasm x64-add-reg
-  (_fun _dynasm-buffer _int _int -> _void)
+  (_fun _int _int -> _x64-insn)
   #:c-id x64_add_reg)
 
 ;; ADD r64, imm32
 (define-dynasm x64-add-imm32
-  (_fun _dynasm-buffer _int _int32 -> _void)
+  (_fun _int _int32 -> _x64-insn)
   #:c-id x64_add_imm32)
 
 ;; ADD r64, imm8
 (define-dynasm x64-add-imm8
-  (_fun _dynasm-buffer _int _int8 -> _void)
+  (_fun _int _int8 -> _x64-insn)
   #:c-id x64_add_imm8)
 
 ;; SUB r64, r64
 (define-dynasm x64-sub-reg
-  (_fun _dynasm-buffer _int _int -> _void)
+  (_fun _int _int -> _x64-insn)
   #:c-id x64_sub_reg)
 
 ;; SUB r64, imm32
 (define-dynasm x64-sub-imm32
-  (_fun _dynasm-buffer _int _int32 -> _void)
+  (_fun _int _int32 -> _x64-insn)
   #:c-id x64_sub_imm32)
 
 ;; SUB r64, imm8
 (define-dynasm x64-sub-imm8
-  (_fun _dynasm-buffer _int _int8 -> _void)
+  (_fun _int _int8 -> _x64-insn)
   #:c-id x64_sub_imm8)
 
 ;; IMUL r64, r64
 (define-dynasm x64-imul-reg
-  (_fun _dynasm-buffer _int _int -> _void)
+  (_fun _int _int -> _x64-insn)
   #:c-id x64_imul_reg)
 
 ;; IMUL r64, r64, imm32
 (define-dynasm x64-imul-imm32
-  (_fun _dynasm-buffer _int _int _int32 -> _void)
+  (_fun _int _int _int32 -> _x64-insn)
   #:c-id x64_imul_imm32)
 
 ;; IDIV r64
 (define-dynasm x64-idiv-reg
-  (_fun _dynasm-buffer _int -> _void)
+  (_fun _int -> _x64-insn)
   #:c-id x64_idiv_reg)
 
 ;; CQO
 (define-dynasm x64-cqo
-  (_fun _dynasm-buffer -> _void)
+  (_fun -> _x64-insn)
   #:c-id x64_cqo)
 
 ;; SHL r64, imm8
 (define-dynasm x64-shl-imm
-  (_fun _dynasm-buffer _int _uint8 -> _void)
+  (_fun _int _uint8 -> _x64-insn)
   #:c-id x64_shl_imm)
 
 ;; SHL r64, CL
 (define-dynasm x64-shl-cl
-  (_fun _dynasm-buffer _int -> _void)
+  (_fun _int -> _x64-insn)
   #:c-id x64_shl_cl)
 
 ;; SHR r64, imm8
 (define-dynasm x64-shr-imm
-  (_fun _dynasm-buffer _int _uint8 -> _void)
+  (_fun _int _uint8 -> _x64-insn)
   #:c-id x64_shr_imm)
 
 ;; SHR r64, CL
 (define-dynasm x64-shr-cl
-  (_fun _dynasm-buffer _int -> _void)
+  (_fun _int -> _x64-insn)
   #:c-id x64_shr_cl)
 
 ;; SAR r64, imm8
 (define-dynasm x64-sar-imm
-  (_fun _dynasm-buffer _int _uint8 -> _void)
+  (_fun _int _uint8 -> _x64-insn)
   #:c-id x64_sar_imm)
 
 ;; SAR r64, CL
 (define-dynasm x64-sar-cl
-  (_fun _dynasm-buffer _int -> _void)
+  (_fun _int -> _x64-insn)
   #:c-id x64_sar_cl)
 
 ;; CMP r64, r64
 (define-dynasm x64-cmp-reg
-  (_fun _dynasm-buffer _int _int -> _void)
+  (_fun _int _int -> _x64-insn)
   #:c-id x64_cmp_reg)
 
 ;; CMP r64, imm32
 (define-dynasm x64-cmp-imm32
-  (_fun _dynasm-buffer _int _int32 -> _void)
+  (_fun _int _int32 -> _x64-insn)
   #:c-id x64_cmp_imm32)
 
 ;; CMP r64, imm8
 (define-dynasm x64-cmp-imm8
-  (_fun _dynasm-buffer _int _int8 -> _void)
+  (_fun _int _int8 -> _x64-insn)
   #:c-id x64_cmp_imm8)
 
 ;; TEST r64, r64
 (define-dynasm x64-test-reg
-  (_fun _dynasm-buffer _int _int -> _void)
+  (_fun _int _int -> _x64-insn)
   #:c-id x64_test_reg)
 
 ;; JMP rel32
 (define-dynasm x64-jmp-rel32
-  (_fun _dynasm-buffer _int32 -> _void)
+  (_fun _int32 -> _x64-insn)
   #:c-id x64_jmp_rel32)
 
 ;; JMP rel8
 (define-dynasm x64-jmp-rel8
-  (_fun _dynasm-buffer _int8 -> _void)
+  (_fun _int8 -> _x64-insn)
   #:c-id x64_jmp_rel8)
 
 ;; Jcc rel32
 (define-dynasm x64-jcc-rel32
-  (_fun _dynasm-buffer _int _int32 -> _void)
+  (_fun _int _int32 -> _x64-insn)
   #:c-id x64_jcc_rel32)
 
 ;; Jcc rel8
 (define-dynasm x64-jcc-rel8
-  (_fun _dynasm-buffer _int _int8 -> _void)
+  (_fun _int _int8 -> _x64-insn)
   #:c-id x64_jcc_rel8)
 
 ;; CALL rel32
 (define-dynasm x64-call-rel32
-  (_fun _dynasm-buffer _int32 -> _void)
+  (_fun _int32 -> _x64-insn)
   #:c-id x64_call_rel32)
 
 ;; RET
 (define-dynasm x64-ret
-  (_fun _dynasm-buffer -> _void)
+  (_fun -> _x64-insn)
   #:c-id x64_ret)
 
 ;; PUSH r64
 (define-dynasm x64-push
-  (_fun _dynasm-buffer _int -> _void)
+  (_fun _int -> _x64-insn)
   #:c-id x64_push)
 
 ;; POP r64
 (define-dynasm x64-pop
-  (_fun _dynasm-buffer _int -> _void)
+  (_fun _int -> _x64-insn)
   #:c-id x64_pop)
 
 ;; NOP
 (define-dynasm x64-nop
-  (_fun _dynasm-buffer -> _void)
+  (_fun -> _x64-insn)
   #:c-id x64_nop)
 
 ;; NEG r64
 (define-dynasm x64-neg
-  (_fun _dynasm-buffer _int -> _void)
+  (_fun _int -> _x64-insn)
   #:c-id x64_neg)
 
 ;; AND r64, r64
 (define-dynasm x64-and-reg
-  (_fun _dynasm-buffer _int _int -> _void)
+  (_fun _int _int -> _x64-insn)
   #:c-id x64_and_reg)
 
 ;; AND r64, imm32
 (define-dynasm x64-and-imm32
-  (_fun _dynasm-buffer _int _int32 -> _void)
+  (_fun _int _int32 -> _x64-insn)
   #:c-id x64_and_imm32)
 
 ;; OR r64, r64
 (define-dynasm x64-or-reg
-  (_fun _dynasm-buffer _int _int -> _void)
+  (_fun _int _int -> _x64-insn)
   #:c-id x64_or_reg)
 
 ;; XOR r64, r64
 (define-dynasm x64-xor-reg
-  (_fun _dynasm-buffer _int _int -> _void)
+  (_fun _int _int -> _x64-insn)
   #:c-id x64_xor_reg)
 
 ;; INC r64
 (define-dynasm x64-inc
-  (_fun _dynasm-buffer _int -> _void)
+  (_fun _int -> _x64-insn)
   #:c-id x64_inc)
 
 ;; DEC r64
 (define-dynasm x64-dec
-  (_fun _dynasm-buffer _int -> _void)
+  (_fun _int -> _x64-insn)
   #:c-id x64_dec)
 
 ;; ============================================
@@ -713,6 +727,10 @@
 ;; Emit an instruction to the buffer (for AArch64)
 (define (emit! buf inst)
   (dynasm-emit32 buf inst))
+
+;; Emit an x64 instruction to the buffer
+(define (emit-x64! buf insn)
+  (dynasm-emit-x64 buf insn))
 
 ;; Create a callable function from a finalized buffer
 ;; sig is the FFI function signature, e.g., (_fun _int64 _int64 -> _int64)
@@ -877,4 +895,6 @@
 
  ;; Helpers
  emit!
+ emit-x64!
+ dynasm-emit-x64
  make-jit-function)
