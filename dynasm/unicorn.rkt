@@ -6,22 +6,39 @@
          ffi/unsafe/define)
 
 ;; Load the Unicorn shared library
-;; Try multiple paths to find libunicorn dynamically
+;; Use pkg-config to find the library path, with fallbacks
+
+;; Try to get library path from pkg-config
+(define (pkg-config-libdir pkg)
+  (with-handlers ([exn:fail? (lambda (e) #f)])
+    (define-values (proc stdout stdin stderr)
+      (subprocess #f #f #f "/usr/bin/env" "pkg-config" "--variable=libdir" pkg))
+    (close-output-port stdin)
+    (define result (read-line stdout))
+    (close-input-port stdout)
+    (close-input-port stderr)
+    (subprocess-wait proc)
+    (if (and (string? result) (not (equal? result "")))
+        result
+        #f)))
+
 (define (find-unicorn-lib)
+  (define versions '("2" "1" #f))
+
+  ;; Build search paths: pkg-config result first, then standard names
+  (define pkg-config-path (pkg-config-libdir "unicorn"))
   (define search-patterns
-    '("unicorn"                                    ; Standard name
-      "libunicorn"                                 ; Alternative
-      "/usr/lib/x86_64-linux-gnu/libunicorn"      ; Ubuntu/Debian x86_64
-      "/usr/lib/aarch64-linux-gnu/libunicorn"     ; Ubuntu/Debian ARM64
-      "/usr/local/lib/libunicorn"                 ; Manual install
-      "/opt/homebrew/lib/libunicorn"              ; macOS ARM (Homebrew)
-      "/usr/local/opt/unicorn/lib/libunicorn"))   ; macOS Intel (Homebrew)
-  (define versions '("2" "1" ""))
+    (append
+     (if pkg-config-path
+         (list (build-path pkg-config-path "libunicorn"))
+         '())
+     '("unicorn" "libunicorn")))  ; Standard names (uses system library search)
 
   (for/or ([pattern search-patterns])
     (for/or ([version versions])
       (with-handlers ([exn:fail? (lambda (e) #f)])
-        (ffi-lib pattern (list version))))))
+        (ffi-lib (if (path? pattern) (path->string pattern) pattern)
+                 (list version))))))
 
 (define unicorn-lib
   (or (find-unicorn-lib)
