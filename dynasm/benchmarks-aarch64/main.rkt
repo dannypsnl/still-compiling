@@ -7,6 +7,10 @@
          "array.rkt"
          "simd.rkt")
 
+(unless (eq? (system-type 'arch) 'aarch64)
+  (printf "Skipping aarch64 tests: system architecture is ~a\n" (system-type 'arch))
+  (exit 0))
+
 (printf "========================================\n")
 (printf "       DYNASM BENCHMARK SUITE\n")
 (printf "========================================\n")
