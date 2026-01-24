@@ -71,6 +71,54 @@ void dynasm_emit32(dynasm_buffer_t *buf, uint32_t inst) {
 #endif
 }
 
+void dynasm_emit8(dynasm_buffer_t *buf, uint8_t val) {
+  if (buf->size + 1 > buf->capacity)
+    return;
+
+#ifdef __APPLE__
+  pthread_jit_write_protect_np(0);
+#endif
+
+  buf->code[buf->size] = val;
+  buf->size += 1;
+
+#ifdef __APPLE__
+  pthread_jit_write_protect_np(1);
+#endif
+}
+
+void dynasm_emit16(dynasm_buffer_t *buf, uint16_t val) {
+  if (buf->size + 2 > buf->capacity)
+    return;
+
+#ifdef __APPLE__
+  pthread_jit_write_protect_np(0);
+#endif
+
+  memcpy(buf->code + buf->size, &val, 2);
+  buf->size += 2;
+
+#ifdef __APPLE__
+  pthread_jit_write_protect_np(1);
+#endif
+}
+
+void dynasm_emit64(dynasm_buffer_t *buf, uint64_t val) {
+  if (buf->size + 8 > buf->capacity)
+    return;
+
+#ifdef __APPLE__
+  pthread_jit_write_protect_np(0);
+#endif
+
+  memcpy(buf->code + buf->size, &val, 8);
+  buf->size += 8;
+
+#ifdef __APPLE__
+  pthread_jit_write_protect_np(1);
+#endif
+}
+
 void *dynasm_finalize(dynasm_buffer_t *buf) {
   if (!buf || buf->finalized)
     return buf ? buf->code : NULL;
@@ -697,4 +745,399 @@ uint32_t aarch64_eor_simd(int vd, int vn, int vm, int arr) {
   return (q << 30) | (0b101110 << 24) | (0b00 << 22) | (1 << 21) |
          ((vm & 0x1F) << 16) | (0b000111 << 10) | ((vn & 0x1F) << 5) |
          (vd & 0x1F);
+}
+
+// ============================================
+// x64 (x86-64) instruction encoders
+// ============================================
+
+// Helper: compute REX prefix
+// REX.W = 64-bit operand size
+// REX.R = extend ModRM.reg (bit 3 of reg)
+// REX.X = extend SIB.index
+// REX.B = extend ModRM.r/m or SIB.base (bit 3 of rm)
+static inline uint8_t x64_rex(int w, int r, int x, int b) {
+  return 0x40 | (w << 3) | (r << 2) | (x << 1) | b;
+}
+
+// Helper: compute ModRM byte
+// mod: 00=indirect, 01=indirect+disp8, 10=indirect+disp32, 11=direct
+// reg: register operand or opcode extension
+// rm: register/memory operand
+static inline uint8_t x64_modrm(int mod, int reg, int rm) {
+  return ((mod & 0x3) << 6) | ((reg & 0x7) << 3) | (rm & 0x7);
+}
+
+// Helper: compute SIB byte (Scale-Index-Base)
+static inline uint8_t x64_sib(int scale, int index, int base) {
+  return ((scale & 0x3) << 6) | ((index & 0x7) << 3) | (base & 0x7);
+}
+
+// MOV r64, imm64 (REX.W + B8+rd + imm64)
+void x64_mov_imm64(dynasm_buffer_t *buf, int rd, uint64_t imm64) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0xB8 + (rd & 0x7));
+  dynasm_emit64(buf, imm64);
+}
+
+// MOV r64, imm32 (sign-extended: REX.W + C7 /0 + imm32)
+void x64_mov_imm32(dynasm_buffer_t *buf, int rd, int32_t imm32) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0xC7);
+  dynasm_emit8(buf, x64_modrm(3, 0, rd & 0x7));
+  dynasm_emit32(buf, (uint32_t)imm32);
+}
+
+// MOV r64, r64 (REX.W + 89 + ModRM)
+// 89 /r: MOV r/m64, r64
+void x64_mov_reg(dynasm_buffer_t *buf, int rd, int rs) {
+  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x89);
+  dynasm_emit8(buf, x64_modrm(3, rs & 0x7, rd & 0x7));
+}
+
+// MOV r64, [r64] (8B /r: MOV r64, r/m64)
+void x64_mov_rm(dynasm_buffer_t *buf, int rd, int base) {
+  uint8_t rex = x64_rex(1, (rd >> 3) & 1, 0, (base >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x8B);
+  // Handle special cases for RSP (need SIB) and RBP (need disp8)
+  if ((base & 0x7) == 4) {
+    // RSP/R12 requires SIB byte
+    dynasm_emit8(buf, x64_modrm(0, rd & 0x7, 4));
+    dynasm_emit8(buf, x64_sib(0, 4, 4)); // SIB: no scale, no index, RSP base
+  } else if ((base & 0x7) == 5) {
+    // RBP/R13 requires disp8 for mod=00
+    dynasm_emit8(buf, x64_modrm(1, rd & 0x7, base & 0x7));
+    dynasm_emit8(buf, 0); // disp8 = 0
+  } else {
+    dynasm_emit8(buf, x64_modrm(0, rd & 0x7, base & 0x7));
+  }
+}
+
+// MOV r64, [r64 + disp32]
+void x64_mov_rm_disp32(dynasm_buffer_t *buf, int rd, int base, int32_t disp) {
+  uint8_t rex = x64_rex(1, (rd >> 3) & 1, 0, (base >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x8B);
+  if ((base & 0x7) == 4) {
+    // RSP/R12 requires SIB byte
+    dynasm_emit8(buf, x64_modrm(2, rd & 0x7, 4));
+    dynasm_emit8(buf, x64_sib(0, 4, 4));
+  } else {
+    dynasm_emit8(buf, x64_modrm(2, rd & 0x7, base & 0x7));
+  }
+  dynasm_emit32(buf, (uint32_t)disp);
+}
+
+// MOV [r64], r64 (89 /r: MOV r/m64, r64)
+void x64_mov_mr(dynasm_buffer_t *buf, int base, int rs) {
+  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (base >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x89);
+  if ((base & 0x7) == 4) {
+    dynasm_emit8(buf, x64_modrm(0, rs & 0x7, 4));
+    dynasm_emit8(buf, x64_sib(0, 4, 4));
+  } else if ((base & 0x7) == 5) {
+    dynasm_emit8(buf, x64_modrm(1, rs & 0x7, base & 0x7));
+    dynasm_emit8(buf, 0);
+  } else {
+    dynasm_emit8(buf, x64_modrm(0, rs & 0x7, base & 0x7));
+  }
+}
+
+// MOV [r64 + disp32], r64
+void x64_mov_mr_disp32(dynasm_buffer_t *buf, int base, int32_t disp, int rs) {
+  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (base >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x89);
+  if ((base & 0x7) == 4) {
+    dynasm_emit8(buf, x64_modrm(2, rs & 0x7, 4));
+    dynasm_emit8(buf, x64_sib(0, 4, 4));
+  } else {
+    dynasm_emit8(buf, x64_modrm(2, rs & 0x7, base & 0x7));
+  }
+  dynasm_emit32(buf, (uint32_t)disp);
+}
+
+// ADD r64, r64 (REX.W + 01 /r)
+void x64_add_reg(dynasm_buffer_t *buf, int rd, int rs) {
+  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x01);
+  dynasm_emit8(buf, x64_modrm(3, rs & 0x7, rd & 0x7));
+}
+
+// ADD r64, imm32 (REX.W + 81 /0)
+void x64_add_imm32(dynasm_buffer_t *buf, int rd, int32_t imm) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x81);
+  dynasm_emit8(buf, x64_modrm(3, 0, rd & 0x7));
+  dynasm_emit32(buf, (uint32_t)imm);
+}
+
+// ADD r64, imm8 (REX.W + 83 /0)
+void x64_add_imm8(dynasm_buffer_t *buf, int rd, int8_t imm) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x83);
+  dynasm_emit8(buf, x64_modrm(3, 0, rd & 0x7));
+  dynasm_emit8(buf, (uint8_t)imm);
+}
+
+// SUB r64, r64 (REX.W + 29 /r)
+void x64_sub_reg(dynasm_buffer_t *buf, int rd, int rs) {
+  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x29);
+  dynasm_emit8(buf, x64_modrm(3, rs & 0x7, rd & 0x7));
+}
+
+// SUB r64, imm32 (REX.W + 81 /5)
+void x64_sub_imm32(dynasm_buffer_t *buf, int rd, int32_t imm) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x81);
+  dynasm_emit8(buf, x64_modrm(3, 5, rd & 0x7));
+  dynasm_emit32(buf, (uint32_t)imm);
+}
+
+// SUB r64, imm8 (REX.W + 83 /5)
+void x64_sub_imm8(dynasm_buffer_t *buf, int rd, int8_t imm) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x83);
+  dynasm_emit8(buf, x64_modrm(3, 5, rd & 0x7));
+  dynasm_emit8(buf, (uint8_t)imm);
+}
+
+// IMUL r64, r64 (REX.W + 0F AF /r)
+void x64_imul_reg(dynasm_buffer_t *buf, int rd, int rs) {
+  uint8_t rex = x64_rex(1, (rd >> 3) & 1, 0, (rs >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x0F);
+  dynasm_emit8(buf, 0xAF);
+  dynasm_emit8(buf, x64_modrm(3, rd & 0x7, rs & 0x7));
+}
+
+// IMUL r64, r64, imm32 (REX.W + 69 /r)
+void x64_imul_imm32(dynasm_buffer_t *buf, int rd, int rs, int32_t imm) {
+  uint8_t rex = x64_rex(1, (rd >> 3) & 1, 0, (rs >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x69);
+  dynasm_emit8(buf, x64_modrm(3, rd & 0x7, rs & 0x7));
+  dynasm_emit32(buf, (uint32_t)imm);
+}
+
+// IDIV r64 (REX.W + F7 /7)
+void x64_idiv_reg(dynasm_buffer_t *buf, int rs) {
+  uint8_t rex = x64_rex(1, 0, 0, (rs >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0xF7);
+  dynasm_emit8(buf, x64_modrm(3, 7, rs & 0x7));
+}
+
+// CQO (REX.W + 99): sign-extend RAX into RDX:RAX
+void x64_cqo(dynasm_buffer_t *buf) {
+  dynasm_emit8(buf, 0x48); // REX.W
+  dynasm_emit8(buf, 0x99);
+}
+
+// SHL r64, imm8 (REX.W + C1 /4)
+void x64_shl_imm(dynasm_buffer_t *buf, int rd, uint8_t imm) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0xC1);
+  dynasm_emit8(buf, x64_modrm(3, 4, rd & 0x7));
+  dynasm_emit8(buf, imm);
+}
+
+// SHL r64, CL (REX.W + D3 /4)
+void x64_shl_cl(dynasm_buffer_t *buf, int rd) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0xD3);
+  dynasm_emit8(buf, x64_modrm(3, 4, rd & 0x7));
+}
+
+// SHR r64, imm8 (REX.W + C1 /5)
+void x64_shr_imm(dynasm_buffer_t *buf, int rd, uint8_t imm) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0xC1);
+  dynasm_emit8(buf, x64_modrm(3, 5, rd & 0x7));
+  dynasm_emit8(buf, imm);
+}
+
+// SHR r64, CL (REX.W + D3 /5)
+void x64_shr_cl(dynasm_buffer_t *buf, int rd) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0xD3);
+  dynasm_emit8(buf, x64_modrm(3, 5, rd & 0x7));
+}
+
+// SAR r64, imm8 (REX.W + C1 /7)
+void x64_sar_imm(dynasm_buffer_t *buf, int rd, uint8_t imm) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0xC1);
+  dynasm_emit8(buf, x64_modrm(3, 7, rd & 0x7));
+  dynasm_emit8(buf, imm);
+}
+
+// SAR r64, CL (REX.W + D3 /7)
+void x64_sar_cl(dynasm_buffer_t *buf, int rd) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0xD3);
+  dynasm_emit8(buf, x64_modrm(3, 7, rd & 0x7));
+}
+
+// CMP r64, r64 (REX.W + 39 /r)
+void x64_cmp_reg(dynasm_buffer_t *buf, int r1, int r2) {
+  uint8_t rex = x64_rex(1, (r2 >> 3) & 1, 0, (r1 >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x39);
+  dynasm_emit8(buf, x64_modrm(3, r2 & 0x7, r1 & 0x7));
+}
+
+// CMP r64, imm32 (REX.W + 81 /7)
+void x64_cmp_imm32(dynasm_buffer_t *buf, int rd, int32_t imm) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x81);
+  dynasm_emit8(buf, x64_modrm(3, 7, rd & 0x7));
+  dynasm_emit32(buf, (uint32_t)imm);
+}
+
+// CMP r64, imm8 (REX.W + 83 /7)
+void x64_cmp_imm8(dynasm_buffer_t *buf, int rd, int8_t imm) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x83);
+  dynasm_emit8(buf, x64_modrm(3, 7, rd & 0x7));
+  dynasm_emit8(buf, (uint8_t)imm);
+}
+
+// TEST r64, r64 (REX.W + 85 /r)
+void x64_test_reg(dynasm_buffer_t *buf, int r1, int r2) {
+  uint8_t rex = x64_rex(1, (r2 >> 3) & 1, 0, (r1 >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x85);
+  dynasm_emit8(buf, x64_modrm(3, r2 & 0x7, r1 & 0x7));
+}
+
+// JMP rel32 (E9 + rel32)
+void x64_jmp_rel32(dynasm_buffer_t *buf, int32_t rel) {
+  dynasm_emit8(buf, 0xE9);
+  dynasm_emit32(buf, (uint32_t)rel);
+}
+
+// JMP rel8 (EB + rel8)
+void x64_jmp_rel8(dynasm_buffer_t *buf, int8_t rel) {
+  dynasm_emit8(buf, 0xEB);
+  dynasm_emit8(buf, (uint8_t)rel);
+}
+
+// Jcc rel32 (0F 8x + rel32)
+void x64_jcc_rel32(dynasm_buffer_t *buf, int cc, int32_t rel) {
+  dynasm_emit8(buf, 0x0F);
+  dynasm_emit8(buf, 0x80 + (cc & 0xF));
+  dynasm_emit32(buf, (uint32_t)rel);
+}
+
+// Jcc rel8 (7x + rel8)
+void x64_jcc_rel8(dynasm_buffer_t *buf, int cc, int8_t rel) {
+  dynasm_emit8(buf, 0x70 + (cc & 0xF));
+  dynasm_emit8(buf, (uint8_t)rel);
+}
+
+// CALL rel32 (E8 + rel32)
+void x64_call_rel32(dynasm_buffer_t *buf, int32_t rel) {
+  dynasm_emit8(buf, 0xE8);
+  dynasm_emit32(buf, (uint32_t)rel);
+}
+
+// RET (C3)
+void x64_ret(dynasm_buffer_t *buf) { dynasm_emit8(buf, 0xC3); }
+
+// PUSH r64 (50+rd or REX + 50+rd for R8-R15)
+void x64_push(dynasm_buffer_t *buf, int reg) {
+  if (reg >= 8) {
+    dynasm_emit8(buf, x64_rex(0, 0, 0, 1));
+  }
+  dynasm_emit8(buf, 0x50 + (reg & 0x7));
+}
+
+// POP r64 (58+rd or REX + 58+rd for R8-R15)
+void x64_pop(dynasm_buffer_t *buf, int reg) {
+  if (reg >= 8) {
+    dynasm_emit8(buf, x64_rex(0, 0, 0, 1));
+  }
+  dynasm_emit8(buf, 0x58 + (reg & 0x7));
+}
+
+// NOP (90)
+void x64_nop(dynasm_buffer_t *buf) { dynasm_emit8(buf, 0x90); }
+
+// NEG r64 (REX.W + F7 /3)
+void x64_neg(dynasm_buffer_t *buf, int rd) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0xF7);
+  dynasm_emit8(buf, x64_modrm(3, 3, rd & 0x7));
+}
+
+// AND r64, r64 (REX.W + 21 /r)
+void x64_and_reg(dynasm_buffer_t *buf, int rd, int rs) {
+  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x21);
+  dynasm_emit8(buf, x64_modrm(3, rs & 0x7, rd & 0x7));
+}
+
+// AND r64, imm32 (REX.W + 81 /4)
+void x64_and_imm32(dynasm_buffer_t *buf, int rd, int32_t imm) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x81);
+  dynasm_emit8(buf, x64_modrm(3, 4, rd & 0x7));
+  dynasm_emit32(buf, (uint32_t)imm);
+}
+
+// OR r64, r64 (REX.W + 09 /r)
+void x64_or_reg(dynasm_buffer_t *buf, int rd, int rs) {
+  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x09);
+  dynasm_emit8(buf, x64_modrm(3, rs & 0x7, rd & 0x7));
+}
+
+// XOR r64, r64 (REX.W + 31 /r)
+void x64_xor_reg(dynasm_buffer_t *buf, int rd, int rs) {
+  uint8_t rex = x64_rex(1, (rs >> 3) & 1, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0x31);
+  dynasm_emit8(buf, x64_modrm(3, rs & 0x7, rd & 0x7));
+}
+
+// INC r64 (REX.W + FF /0)
+void x64_inc(dynasm_buffer_t *buf, int rd) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0xFF);
+  dynasm_emit8(buf, x64_modrm(3, 0, rd & 0x7));
+}
+
+// DEC r64 (REX.W + FF /1)
+void x64_dec(dynasm_buffer_t *buf, int rd) {
+  uint8_t rex = x64_rex(1, 0, 0, (rd >> 3) & 1);
+  dynasm_emit8(buf, rex);
+  dynasm_emit8(buf, 0xFF);
+  dynasm_emit8(buf, x64_modrm(3, 1, rd & 0x7));
 }

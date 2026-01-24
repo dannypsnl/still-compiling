@@ -19,6 +19,15 @@ size_t dynasm_pos(dynasm_buffer_t *buf);
 // Emit raw 32-bit instruction
 void dynasm_emit32(dynasm_buffer_t *buf, uint32_t inst);
 
+// Emit raw 8-bit value (for x64)
+void dynasm_emit8(dynasm_buffer_t *buf, uint8_t val);
+
+// Emit raw 16-bit value (for x64)
+void dynasm_emit16(dynasm_buffer_t *buf, uint16_t val);
+
+// Emit raw 64-bit value (for x64)
+void dynasm_emit64(dynasm_buffer_t *buf, uint64_t val);
+
 // Finalize and get executable function pointer
 void *dynasm_finalize(dynasm_buffer_t *buf);
 
@@ -318,5 +327,176 @@ uint32_t aarch64_ins_general(int vd, int rn, int arr, int index);
 
 // EOR (vector): bitwise XOR, useful for zeroing registers (EOR Vd, Vn, Vn)
 uint32_t aarch64_eor_simd(int vd, int vn, int vm, int arr);
+
+// ============================================
+// x64 (x86-64) register constants
+// ============================================
+#define RAX 0
+#define RCX 1
+#define RDX 2
+#define RBX 3
+#define RSP 4
+#define RBP 5
+#define RSI 6
+#define RDI 7
+#define R8 8
+#define R9 9
+#define R10 10
+#define R11 11
+#define R12 12
+#define R13 13
+#define R14 14
+#define R15 15
+
+// x64 condition codes for Jcc
+#define X64_CC_O 0x0   // Overflow
+#define X64_CC_NO 0x1  // No overflow
+#define X64_CC_B 0x2   // Below (unsigned <)
+#define X64_CC_AE 0x3  // Above or equal (unsigned >=)
+#define X64_CC_E 0x4   // Equal
+#define X64_CC_NE 0x5  // Not equal
+#define X64_CC_BE 0x6  // Below or equal (unsigned <=)
+#define X64_CC_A 0x7   // Above (unsigned >)
+#define X64_CC_S 0x8   // Sign (negative)
+#define X64_CC_NS 0x9  // No sign (non-negative)
+#define X64_CC_P 0xA   // Parity even
+#define X64_CC_NP 0xB  // Parity odd
+#define X64_CC_L 0xC   // Less (signed <)
+#define X64_CC_GE 0xD  // Greater or equal (signed >=)
+#define X64_CC_LE 0xE  // Less or equal (signed <=)
+#define X64_CC_G 0xF   // Greater (signed >)
+
+// ============================================
+// x64 instruction encoders
+// ============================================
+
+// MOV r64, imm64 (10 bytes: REX.W + B8+rd + imm64)
+void x64_mov_imm64(dynasm_buffer_t *buf, int rd, uint64_t imm64);
+
+// MOV r64, imm32 (sign-extended, 7 bytes: REX.W + C7 /0 + imm32)
+void x64_mov_imm32(dynasm_buffer_t *buf, int rd, int32_t imm32);
+
+// MOV r64, r64 (3 bytes: REX.W + 89 + ModRM)
+void x64_mov_reg(dynasm_buffer_t *buf, int rd, int rs);
+
+// MOV r64, [r64] (memory to register, base only)
+void x64_mov_rm(dynasm_buffer_t *buf, int rd, int base);
+
+// MOV r64, [r64 + disp32] (memory to register with displacement)
+void x64_mov_rm_disp32(dynasm_buffer_t *buf, int rd, int base, int32_t disp);
+
+// MOV [r64], r64 (register to memory, base only)
+void x64_mov_mr(dynasm_buffer_t *buf, int base, int rs);
+
+// MOV [r64 + disp32], r64 (register to memory with displacement)
+void x64_mov_mr_disp32(dynasm_buffer_t *buf, int base, int32_t disp, int rs);
+
+// ADD r64, r64
+void x64_add_reg(dynasm_buffer_t *buf, int rd, int rs);
+
+// ADD r64, imm32 (sign-extended)
+void x64_add_imm32(dynasm_buffer_t *buf, int rd, int32_t imm);
+
+// ADD r64, imm8 (sign-extended)
+void x64_add_imm8(dynasm_buffer_t *buf, int rd, int8_t imm);
+
+// SUB r64, r64
+void x64_sub_reg(dynasm_buffer_t *buf, int rd, int rs);
+
+// SUB r64, imm32 (sign-extended)
+void x64_sub_imm32(dynasm_buffer_t *buf, int rd, int32_t imm);
+
+// SUB r64, imm8 (sign-extended)
+void x64_sub_imm8(dynasm_buffer_t *buf, int rd, int8_t imm);
+
+// IMUL r64, r64 (signed multiply)
+void x64_imul_reg(dynasm_buffer_t *buf, int rd, int rs);
+
+// IMUL r64, r64, imm32 (signed multiply with immediate)
+void x64_imul_imm32(dynasm_buffer_t *buf, int rd, int rs, int32_t imm);
+
+// IDIV r64 (signed divide RDX:RAX by r64, quotient in RAX, remainder in RDX)
+void x64_idiv_reg(dynasm_buffer_t *buf, int rs);
+
+// CQO (sign-extend RAX into RDX:RAX)
+void x64_cqo(dynasm_buffer_t *buf);
+
+// SHL r64, imm8
+void x64_shl_imm(dynasm_buffer_t *buf, int rd, uint8_t imm);
+
+// SHL r64, CL
+void x64_shl_cl(dynasm_buffer_t *buf, int rd);
+
+// SHR r64, imm8
+void x64_shr_imm(dynasm_buffer_t *buf, int rd, uint8_t imm);
+
+// SHR r64, CL
+void x64_shr_cl(dynasm_buffer_t *buf, int rd);
+
+// SAR r64, imm8 (arithmetic shift right)
+void x64_sar_imm(dynasm_buffer_t *buf, int rd, uint8_t imm);
+
+// SAR r64, CL
+void x64_sar_cl(dynasm_buffer_t *buf, int rd);
+
+// CMP r64, r64
+void x64_cmp_reg(dynasm_buffer_t *buf, int r1, int r2);
+
+// CMP r64, imm32 (sign-extended)
+void x64_cmp_imm32(dynasm_buffer_t *buf, int rd, int32_t imm);
+
+// CMP r64, imm8 (sign-extended)
+void x64_cmp_imm8(dynasm_buffer_t *buf, int rd, int8_t imm);
+
+// TEST r64, r64
+void x64_test_reg(dynasm_buffer_t *buf, int r1, int r2);
+
+// JMP rel32 (5 bytes)
+void x64_jmp_rel32(dynasm_buffer_t *buf, int32_t rel);
+
+// JMP rel8 (2 bytes)
+void x64_jmp_rel8(dynasm_buffer_t *buf, int8_t rel);
+
+// Jcc rel32 (6 bytes: 0F 8x + rel32)
+void x64_jcc_rel32(dynasm_buffer_t *buf, int cc, int32_t rel);
+
+// Jcc rel8 (2 bytes: 7x + rel8)
+void x64_jcc_rel8(dynasm_buffer_t *buf, int cc, int8_t rel);
+
+// CALL rel32 (5 bytes)
+void x64_call_rel32(dynasm_buffer_t *buf, int32_t rel);
+
+// RET (1 byte)
+void x64_ret(dynasm_buffer_t *buf);
+
+// PUSH r64 (1-2 bytes)
+void x64_push(dynasm_buffer_t *buf, int reg);
+
+// POP r64 (1-2 bytes)
+void x64_pop(dynasm_buffer_t *buf, int reg);
+
+// NOP (1 byte)
+void x64_nop(dynasm_buffer_t *buf);
+
+// NEG r64 (two's complement negate)
+void x64_neg(dynasm_buffer_t *buf, int rd);
+
+// AND r64, r64
+void x64_and_reg(dynasm_buffer_t *buf, int rd, int rs);
+
+// AND r64, imm32
+void x64_and_imm32(dynasm_buffer_t *buf, int rd, int32_t imm);
+
+// OR r64, r64
+void x64_or_reg(dynasm_buffer_t *buf, int rd, int rs);
+
+// XOR r64, r64
+void x64_xor_reg(dynasm_buffer_t *buf, int rd, int rs);
+
+// INC r64
+void x64_inc(dynasm_buffer_t *buf, int rd);
+
+// DEC r64
+void x64_dec(dynasm_buffer_t *buf, int rd);
 
 #endif // DYNASM_H
