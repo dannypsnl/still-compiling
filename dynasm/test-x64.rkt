@@ -10,14 +10,6 @@
          "jit-functions-x64.rkt")
 
 ;; ============================================
-;; Architecture check - skip tests if not x86_64
-;; ============================================
-
-(unless (eq? (system-type 'arch) 'x86_64)
-  (printf "Skipping x64 tests: system architecture is ~a\n" (system-type 'arch))
-  (exit 0))
-
-;; ============================================
 ;; Test helpers
 ;; ============================================
 
@@ -504,8 +496,17 @@
 ;; Run all tests
 ;; ============================================
 (module+ main
+  (unless (eq? (system-type 'arch) 'x86_64)
+    (printf "Skipping x64 tests: system architecture is ~a\n" (system-type 'arch))
+    (exit 0))
+
   (run-tests all-tests 'verbose))
 
 (module+ test
   (require rackunit/text-ui)
+
+  (unless (eq? (system-type 'arch) 'x86_64)
+    (printf "Skipping x64 tests: system architecture is ~a\n" (system-type 'arch))
+    (exit 0))
+
   (run-tests all-tests))
