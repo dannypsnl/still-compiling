@@ -5,8 +5,8 @@
 
 (require ffi/unsafe
          racket/format
-         "dynasm.rkt"
-         "unicorn.rkt")
+         "../dynasm.rkt"
+         "../unicorn.rkt")
 
 (displayln "=== Dynasm + Unicorn Example: Factorial ===\n")
 
