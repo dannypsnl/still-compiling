@@ -583,6 +583,373 @@
   #:c-id x64_dec)
 
 ;; ============================================
+;; RISC-V 64-bit instruction encoders (RV64I + RV64M)
+;; ============================================
+
+;; Arithmetic R-type
+(define-dynasm riscv64-add
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_add)
+
+(define-dynasm riscv64-sub
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_sub)
+
+(define-dynasm riscv64-sll
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_sll)
+
+(define-dynasm riscv64-slt
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_slt)
+
+(define-dynasm riscv64-sltu
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_sltu)
+
+(define-dynasm riscv64-xor
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_xor)
+
+(define-dynasm riscv64-srl
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_srl)
+
+(define-dynasm riscv64-sra
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_sra)
+
+(define-dynasm riscv64-or
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_or)
+
+(define-dynasm riscv64-and
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_and)
+
+;; Arithmetic 64-bit word variants
+(define-dynasm riscv64-addw
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_addw)
+
+(define-dynasm riscv64-subw
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_subw)
+
+(define-dynasm riscv64-sllw
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_sllw)
+
+(define-dynasm riscv64-srlw
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_srlw)
+
+(define-dynasm riscv64-sraw
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_sraw)
+
+;; Immediate arithmetic I-type
+(define-dynasm riscv64-addi
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_addi)
+
+(define-dynasm riscv64-slti
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_slti)
+
+(define-dynasm riscv64-sltiu
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_sltiu)
+
+(define-dynasm riscv64-xori
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_xori)
+
+(define-dynasm riscv64-ori
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_ori)
+
+(define-dynasm riscv64-andi
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_andi)
+
+(define-dynasm riscv64-slli
+  (_fun _int _int _uint32 -> _uint32)
+  #:c-id riscv64_slli)
+
+(define-dynasm riscv64-srli
+  (_fun _int _int _uint32 -> _uint32)
+  #:c-id riscv64_srli)
+
+(define-dynasm riscv64-srai
+  (_fun _int _int _uint32 -> _uint32)
+  #:c-id riscv64_srai)
+
+;; Immediate 64-bit word variants
+(define-dynasm riscv64-addiw
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_addiw)
+
+(define-dynasm riscv64-slliw
+  (_fun _int _int _uint32 -> _uint32)
+  #:c-id riscv64_slliw)
+
+(define-dynasm riscv64-srliw
+  (_fun _int _int _uint32 -> _uint32)
+  #:c-id riscv64_srliw)
+
+(define-dynasm riscv64-sraiw
+  (_fun _int _int _uint32 -> _uint32)
+  #:c-id riscv64_sraiw)
+
+;; Load instructions
+(define-dynasm riscv64-ld
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_ld)
+
+(define-dynasm riscv64-lw
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_lw)
+
+(define-dynasm riscv64-lwu
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_lwu)
+
+(define-dynasm riscv64-lh
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_lh)
+
+(define-dynasm riscv64-lhu
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_lhu)
+
+(define-dynasm riscv64-lb
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_lb)
+
+(define-dynasm riscv64-lbu
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_lbu)
+
+;; Store instructions
+(define-dynasm riscv64-sd
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_sd)
+
+(define-dynasm riscv64-sw
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_sw)
+
+(define-dynasm riscv64-sh
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_sh)
+
+(define-dynasm riscv64-sb
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_sb)
+
+;; Upper immediate
+(define-dynasm riscv64-lui
+  (_fun _int _uint32 -> _uint32)
+  #:c-id riscv64_lui)
+
+(define-dynasm riscv64-auipc
+  (_fun _int _uint32 -> _uint32)
+  #:c-id riscv64_auipc)
+
+;; Branch instructions
+(define-dynasm riscv64-beq
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_beq)
+
+(define-dynasm riscv64-bne
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_bne)
+
+(define-dynasm riscv64-blt
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_blt)
+
+(define-dynasm riscv64-bge
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_bge)
+
+(define-dynasm riscv64-bltu
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_bltu)
+
+(define-dynasm riscv64-bgeu
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_bgeu)
+
+;; Jump instructions
+(define-dynasm riscv64-jal
+  (_fun _int _int32 -> _uint32)
+  #:c-id riscv64_jal)
+
+(define-dynasm riscv64-jalr
+  (_fun _int _int _int32 -> _uint32)
+  #:c-id riscv64_jalr)
+
+;; RV64M - Multiply/Divide extension
+(define-dynasm riscv64-mul
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_mul)
+
+(define-dynasm riscv64-mulh
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_mulh)
+
+(define-dynasm riscv64-mulhsu
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_mulhsu)
+
+(define-dynasm riscv64-mulhu
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_mulhu)
+
+(define-dynasm riscv64-div
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_div)
+
+(define-dynasm riscv64-divu
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_divu)
+
+(define-dynasm riscv64-rem
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_rem)
+
+(define-dynasm riscv64-remu
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_remu)
+
+(define-dynasm riscv64-mulw
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_mulw)
+
+(define-dynasm riscv64-divw
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_divw)
+
+(define-dynasm riscv64-divuw
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_divuw)
+
+(define-dynasm riscv64-remw
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_remw)
+
+(define-dynasm riscv64-remuw
+  (_fun _int _int _int -> _uint32)
+  #:c-id riscv64_remuw)
+
+;; Pseudo-instructions
+(define-dynasm riscv64-nop
+  (_fun -> _uint32)
+  #:c-id riscv64_nop)
+
+(define-dynasm riscv64-mv
+  (_fun _int _int -> _uint32)
+  #:c-id riscv64_mv)
+
+(define-dynasm riscv64-not
+  (_fun _int _int -> _uint32)
+  #:c-id riscv64_not)
+
+(define-dynasm riscv64-neg
+  (_fun _int _int -> _uint32)
+  #:c-id riscv64_neg)
+
+(define-dynasm riscv64-li
+  (_fun _int _int32 -> _uint32)
+  #:c-id riscv64_li)
+
+(define-dynasm riscv64-ret
+  (_fun -> _uint32)
+  #:c-id riscv64_ret)
+
+(define-dynasm riscv64-jr
+  (_fun _int -> _uint32)
+  #:c-id riscv64_jr)
+
+(define-dynasm riscv64-j
+  (_fun _int32 -> _uint32)
+  #:c-id riscv64_j)
+
+;; ============================================
+;; RISC-V 64-bit register constants
+;; ============================================
+
+(define RV-X0  0)   ; zero - hardwired zero
+(define RV-X1  1)   ; ra - return address
+(define RV-X2  2)   ; sp - stack pointer
+(define RV-X3  3)   ; gp - global pointer
+(define RV-X4  4)   ; tp - thread pointer
+(define RV-X5  5)   ; t0 - temporary
+(define RV-X6  6)   ; t1
+(define RV-X7  7)   ; t2
+(define RV-X8  8)   ; s0/fp - saved/frame pointer
+(define RV-X9  9)   ; s1 - saved
+(define RV-X10 10)  ; a0 - argument/return value
+(define RV-X11 11)  ; a1 - argument/return value
+(define RV-X12 12)  ; a2 - argument
+(define RV-X13 13)  ; a3
+(define RV-X14 14)  ; a4
+(define RV-X15 15)  ; a5
+(define RV-X16 16)  ; a6
+(define RV-X17 17)  ; a7
+(define RV-X18 18)  ; s2 - saved
+(define RV-X19 19)  ; s3
+(define RV-X20 20)  ; s4
+(define RV-X21 21)  ; s5
+(define RV-X22 22)  ; s6
+(define RV-X23 23)  ; s7
+(define RV-X24 24)  ; s8
+(define RV-X25 25)  ; s9
+(define RV-X26 26)  ; s10
+(define RV-X27 27)  ; s11
+(define RV-X28 28)  ; t3 - temporary
+(define RV-X29 29)  ; t4
+(define RV-X30 30)  ; t5
+(define RV-X31 31)  ; t6
+
+;; ABI name aliases
+(define RV-ZERO RV-X0)
+(define RV-RA   RV-X1)
+(define RV-SP   RV-X2)
+(define RV-GP   RV-X3)
+(define RV-TP   RV-X4)
+(define RV-T0   RV-X5)
+(define RV-T1   RV-X6)
+(define RV-T2   RV-X7)
+(define RV-S0   RV-X8)
+(define RV-FP   RV-X8)
+(define RV-S1   RV-X9)
+(define RV-A0   RV-X10)
+(define RV-A1   RV-X11)
+(define RV-A2   RV-X12)
+(define RV-A3   RV-X13)
+(define RV-A4   RV-X14)
+(define RV-A5   RV-X15)
+(define RV-A6   RV-X16)
+(define RV-A7   RV-X17)
+(define RV-S2   RV-X18)
+(define RV-S3   RV-X19)
+(define RV-S4   RV-X20)
+(define RV-S5   RV-X21)
+(define RV-S6   RV-X22)
+(define RV-S7   RV-X23)
+(define RV-S8   RV-X24)
+(define RV-S9   RV-X25)
+(define RV-S10  RV-X26)
+(define RV-S11  RV-X27)
+(define RV-T3   RV-X28)
+(define RV-T4   RV-X29)
+(define RV-T5   RV-X30)
+(define RV-T6   RV-X31)
+
+;; ============================================
 ;; AArch64 register constants
 ;; ============================================
 
@@ -866,6 +1233,34 @@
  x64-xor-reg
  x64-inc
  x64-dec
+
+ ;; RISC-V 64-bit instruction encoders
+ riscv64-add riscv64-sub riscv64-sll riscv64-slt riscv64-sltu
+ riscv64-xor riscv64-srl riscv64-sra riscv64-or riscv64-and
+ riscv64-addw riscv64-subw riscv64-sllw riscv64-srlw riscv64-sraw
+ riscv64-addi riscv64-slti riscv64-sltiu riscv64-xori riscv64-ori riscv64-andi
+ riscv64-slli riscv64-srli riscv64-srai
+ riscv64-addiw riscv64-slliw riscv64-srliw riscv64-sraiw
+ riscv64-ld riscv64-lw riscv64-lwu riscv64-lh riscv64-lhu riscv64-lb riscv64-lbu
+ riscv64-sd riscv64-sw riscv64-sh riscv64-sb
+ riscv64-lui riscv64-auipc
+ riscv64-beq riscv64-bne riscv64-blt riscv64-bge riscv64-bltu riscv64-bgeu
+ riscv64-jal riscv64-jalr
+ riscv64-mul riscv64-mulh riscv64-mulhsu riscv64-mulhu
+ riscv64-div riscv64-divu riscv64-rem riscv64-remu
+ riscv64-mulw riscv64-divw riscv64-divuw riscv64-remw riscv64-remuw
+ riscv64-nop riscv64-mv riscv64-not riscv64-neg riscv64-li
+ riscv64-ret riscv64-jr riscv64-j
+
+ ;; RISC-V 64-bit registers
+ RV-X0 RV-X1 RV-X2 RV-X3 RV-X4 RV-X5 RV-X6 RV-X7
+ RV-X8 RV-X9 RV-X10 RV-X11 RV-X12 RV-X13 RV-X14 RV-X15
+ RV-X16 RV-X17 RV-X18 RV-X19 RV-X20 RV-X21 RV-X22 RV-X23
+ RV-X24 RV-X25 RV-X26 RV-X27 RV-X28 RV-X29 RV-X30 RV-X31
+ RV-ZERO RV-RA RV-SP RV-GP RV-TP
+ RV-T0 RV-T1 RV-T2 RV-T3 RV-T4 RV-T5 RV-T6
+ RV-S0 RV-S1 RV-S2 RV-S3 RV-S4 RV-S5 RV-S6 RV-S7 RV-S8 RV-S9 RV-S10 RV-S11
+ RV-FP RV-A0 RV-A1 RV-A2 RV-A3 RV-A4 RV-A5 RV-A6 RV-A7
 
  ;; AArch64 general-purpose registers
  X0 X1 X2 X3 X4 X5 X6 X7 X8 X9

@@ -1288,3 +1288,348 @@ x64_insn_t x64_dec(int rd) {
   insn.len = 3;
   return insn;
 }
+
+// ============================================
+// RISC-V 64-bit instruction encoders
+// ============================================
+
+// Helper: encode R-type instruction
+// Format: opcode[6:0] | rd[11:7] | funct3[14:12] | rs1[19:15] | rs2[24:20] | funct7[31:25]
+static inline uint32_t riscv_encode_r(uint32_t opcode, int rd, int funct3,
+                                       int rs1, int rs2, uint32_t funct7) {
+  return opcode | ((rd & 0x1F) << 7) | ((funct3 & 0x7) << 12) |
+         ((rs1 & 0x1F) << 15) | ((rs2 & 0x1F) << 20) | (funct7 << 25);
+}
+
+// Helper: encode I-type instruction
+// Format: opcode[6:0] | rd[11:7] | funct3[14:12] | rs1[19:15] | imm[31:20]
+static inline uint32_t riscv_encode_i(uint32_t opcode, int rd, int funct3,
+                                       int rs1, int32_t imm) {
+  return opcode | ((rd & 0x1F) << 7) | ((funct3 & 0x7) << 12) |
+         ((rs1 & 0x1F) << 15) | ((imm & 0xFFF) << 20);
+}
+
+// Helper: encode S-type instruction
+// Format: opcode[6:0] | imm[4:0][11:7] | funct3[14:12] | rs1[19:15] | rs2[24:20] | imm[11:5][31:25]
+static inline uint32_t riscv_encode_s(uint32_t opcode, int funct3,
+                                       int rs1, int rs2, int32_t imm) {
+  return opcode | ((imm & 0x1F) << 7) | ((funct3 & 0x7) << 12) |
+         ((rs1 & 0x1F) << 15) | ((rs2 & 0x1F) << 20) | (((imm >> 5) & 0x7F) << 25);
+}
+
+// Helper: encode B-type instruction
+// Format: opcode[6:0] | imm[11][7] | imm[4:1][11:8] | funct3[14:12] |
+//         rs1[19:15] | rs2[24:20] | imm[10:5][30:25] | imm[12][31]
+static inline uint32_t riscv_encode_b(uint32_t opcode, int funct3,
+                                       int rs1, int rs2, int32_t imm) {
+  return opcode | (((imm >> 11) & 0x1) << 7) | (((imm >> 1) & 0xF) << 8) |
+         ((funct3 & 0x7) << 12) | ((rs1 & 0x1F) << 15) | ((rs2 & 0x1F) << 20) |
+         (((imm >> 5) & 0x3F) << 25) | (((imm >> 12) & 0x1) << 31);
+}
+
+// Helper: encode U-type instruction
+// Format: opcode[6:0] | rd[11:7] | imm[31:12]
+static inline uint32_t riscv_encode_u(uint32_t opcode, int rd, uint32_t imm) {
+  return opcode | ((rd & 0x1F) << 7) | (imm & 0xFFFFF000);
+}
+
+// Helper: encode J-type instruction
+// Format: opcode[6:0] | rd[11:7] | imm[19:12][19:12] | imm[11][20] |
+//         imm[10:1][30:21] | imm[20][31]
+static inline uint32_t riscv_encode_j(uint32_t opcode, int rd, int32_t imm) {
+  return opcode | ((rd & 0x1F) << 7) | (((imm >> 12) & 0xFF) << 12) |
+         (((imm >> 11) & 0x1) << 20) | (((imm >> 1) & 0x3FF) << 21) |
+         (((imm >> 20) & 0x1) << 31);
+}
+
+// Arithmetic R-type (opcode 0b0110011)
+uint32_t riscv64_add(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b000, rs1, rs2, 0b0000000);
+}
+
+uint32_t riscv64_sub(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b000, rs1, rs2, 0b0100000);
+}
+
+uint32_t riscv64_sll(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b001, rs1, rs2, 0b0000000);
+}
+
+uint32_t riscv64_slt(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b010, rs1, rs2, 0b0000000);
+}
+
+uint32_t riscv64_sltu(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b011, rs1, rs2, 0b0000000);
+}
+
+uint32_t riscv64_xor(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b100, rs1, rs2, 0b0000000);
+}
+
+uint32_t riscv64_srl(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b101, rs1, rs2, 0b0000000);
+}
+
+uint32_t riscv64_sra(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b101, rs1, rs2, 0b0100000);
+}
+
+uint32_t riscv64_or(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b110, rs1, rs2, 0b0000000);
+}
+
+uint32_t riscv64_and(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b111, rs1, rs2, 0b0000000);
+}
+
+// Arithmetic 64-bit word variants (opcode 0b0111011)
+uint32_t riscv64_addw(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0111011, rd, 0b000, rs1, rs2, 0b0000000);
+}
+
+uint32_t riscv64_subw(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0111011, rd, 0b000, rs1, rs2, 0b0100000);
+}
+
+uint32_t riscv64_sllw(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0111011, rd, 0b001, rs1, rs2, 0b0000000);
+}
+
+uint32_t riscv64_srlw(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0111011, rd, 0b101, rs1, rs2, 0b0000000);
+}
+
+uint32_t riscv64_sraw(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0111011, rd, 0b101, rs1, rs2, 0b0100000);
+}
+
+// Immediate arithmetic I-type (opcode 0b0010011)
+uint32_t riscv64_addi(int rd, int rs1, int32_t imm) {
+  return riscv_encode_i(0b0010011, rd, 0b000, rs1, imm);
+}
+
+uint32_t riscv64_slti(int rd, int rs1, int32_t imm) {
+  return riscv_encode_i(0b0010011, rd, 0b010, rs1, imm);
+}
+
+uint32_t riscv64_sltiu(int rd, int rs1, int32_t imm) {
+  return riscv_encode_i(0b0010011, rd, 0b011, rs1, imm);
+}
+
+uint32_t riscv64_xori(int rd, int rs1, int32_t imm) {
+  return riscv_encode_i(0b0010011, rd, 0b100, rs1, imm);
+}
+
+uint32_t riscv64_ori(int rd, int rs1, int32_t imm) {
+  return riscv_encode_i(0b0010011, rd, 0b110, rs1, imm);
+}
+
+uint32_t riscv64_andi(int rd, int rs1, int32_t imm) {
+  return riscv_encode_i(0b0010011, rd, 0b111, rs1, imm);
+}
+
+uint32_t riscv64_slli(int rd, int rs1, uint32_t shamt) {
+  return riscv_encode_i(0b0010011, rd, 0b001, rs1, shamt & 0x3F);
+}
+
+uint32_t riscv64_srli(int rd, int rs1, uint32_t shamt) {
+  return riscv_encode_i(0b0010011, rd, 0b101, rs1, shamt & 0x3F);
+}
+
+uint32_t riscv64_srai(int rd, int rs1, uint32_t shamt) {
+  return riscv_encode_i(0b0010011, rd, 0b101, rs1, (shamt & 0x3F) | 0x400);
+}
+
+// Immediate 64-bit word variants (opcode 0b0011011)
+uint32_t riscv64_addiw(int rd, int rs1, int32_t imm) {
+  return riscv_encode_i(0b0011011, rd, 0b000, rs1, imm);
+}
+
+uint32_t riscv64_slliw(int rd, int rs1, uint32_t shamt) {
+  return riscv_encode_i(0b0011011, rd, 0b001, rs1, shamt & 0x1F);
+}
+
+uint32_t riscv64_srliw(int rd, int rs1, uint32_t shamt) {
+  return riscv_encode_i(0b0011011, rd, 0b101, rs1, shamt & 0x1F);
+}
+
+uint32_t riscv64_sraiw(int rd, int rs1, uint32_t shamt) {
+  return riscv_encode_i(0b0011011, rd, 0b101, rs1, (shamt & 0x1F) | 0x400);
+}
+
+// Load instructions (opcode 0b0000011)
+uint32_t riscv64_ld(int rd, int rs1, int32_t offset) {
+  return riscv_encode_i(0b0000011, rd, 0b011, rs1, offset);
+}
+
+uint32_t riscv64_lw(int rd, int rs1, int32_t offset) {
+  return riscv_encode_i(0b0000011, rd, 0b010, rs1, offset);
+}
+
+uint32_t riscv64_lwu(int rd, int rs1, int32_t offset) {
+  return riscv_encode_i(0b0000011, rd, 0b110, rs1, offset);
+}
+
+uint32_t riscv64_lh(int rd, int rs1, int32_t offset) {
+  return riscv_encode_i(0b0000011, rd, 0b001, rs1, offset);
+}
+
+uint32_t riscv64_lhu(int rd, int rs1, int32_t offset) {
+  return riscv_encode_i(0b0000011, rd, 0b101, rs1, offset);
+}
+
+uint32_t riscv64_lb(int rd, int rs1, int32_t offset) {
+  return riscv_encode_i(0b0000011, rd, 0b000, rs1, offset);
+}
+
+uint32_t riscv64_lbu(int rd, int rs1, int32_t offset) {
+  return riscv_encode_i(0b0000011, rd, 0b100, rs1, offset);
+}
+
+// Store instructions (opcode 0b0100011)
+uint32_t riscv64_sd(int rs2, int rs1, int32_t offset) {
+  return riscv_encode_s(0b0100011, 0b011, rs1, rs2, offset);
+}
+
+uint32_t riscv64_sw(int rs2, int rs1, int32_t offset) {
+  return riscv_encode_s(0b0100011, 0b010, rs1, rs2, offset);
+}
+
+uint32_t riscv64_sh(int rs2, int rs1, int32_t offset) {
+  return riscv_encode_s(0b0100011, 0b001, rs1, rs2, offset);
+}
+
+uint32_t riscv64_sb(int rs2, int rs1, int32_t offset) {
+  return riscv_encode_s(0b0100011, 0b000, rs1, rs2, offset);
+}
+
+// Upper immediate
+uint32_t riscv64_lui(int rd, uint32_t imm) {
+  return riscv_encode_u(0b0110111, rd, imm);
+}
+
+uint32_t riscv64_auipc(int rd, uint32_t imm) {
+  return riscv_encode_u(0b0010111, rd, imm);
+}
+
+// Branch instructions (opcode 0b1100011)
+uint32_t riscv64_beq(int rs1, int rs2, int32_t offset) {
+  return riscv_encode_b(0b1100011, 0b000, rs1, rs2, offset);
+}
+
+uint32_t riscv64_bne(int rs1, int rs2, int32_t offset) {
+  return riscv_encode_b(0b1100011, 0b001, rs1, rs2, offset);
+}
+
+uint32_t riscv64_blt(int rs1, int rs2, int32_t offset) {
+  return riscv_encode_b(0b1100011, 0b100, rs1, rs2, offset);
+}
+
+uint32_t riscv64_bge(int rs1, int rs2, int32_t offset) {
+  return riscv_encode_b(0b1100011, 0b101, rs1, rs2, offset);
+}
+
+uint32_t riscv64_bltu(int rs1, int rs2, int32_t offset) {
+  return riscv_encode_b(0b1100011, 0b110, rs1, rs2, offset);
+}
+
+uint32_t riscv64_bgeu(int rs1, int rs2, int32_t offset) {
+  return riscv_encode_b(0b1100011, 0b111, rs1, rs2, offset);
+}
+
+// Jump instructions
+uint32_t riscv64_jal(int rd, int32_t offset) {
+  return riscv_encode_j(0b1101111, rd, offset);
+}
+
+uint32_t riscv64_jalr(int rd, int rs1, int32_t imm) {
+  return riscv_encode_i(0b1100111, rd, 0b000, rs1, imm);
+}
+
+// RV64M - Multiply/Divide extension (opcode 0b0110011, funct7 0b0000001)
+uint32_t riscv64_mul(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b000, rs1, rs2, 0b0000001);
+}
+
+uint32_t riscv64_mulh(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b001, rs1, rs2, 0b0000001);
+}
+
+uint32_t riscv64_mulhsu(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b010, rs1, rs2, 0b0000001);
+}
+
+uint32_t riscv64_mulhu(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b011, rs1, rs2, 0b0000001);
+}
+
+uint32_t riscv64_div(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b100, rs1, rs2, 0b0000001);
+}
+
+uint32_t riscv64_divu(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b101, rs1, rs2, 0b0000001);
+}
+
+uint32_t riscv64_rem(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b110, rs1, rs2, 0b0000001);
+}
+
+uint32_t riscv64_remu(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0110011, rd, 0b111, rs1, rs2, 0b0000001);
+}
+
+// RV64M - 32-bit multiply/divide (opcode 0b0111011, funct7 0b0000001)
+uint32_t riscv64_mulw(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0111011, rd, 0b000, rs1, rs2, 0b0000001);
+}
+
+uint32_t riscv64_divw(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0111011, rd, 0b100, rs1, rs2, 0b0000001);
+}
+
+uint32_t riscv64_divuw(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0111011, rd, 0b101, rs1, rs2, 0b0000001);
+}
+
+uint32_t riscv64_remw(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0111011, rd, 0b110, rs1, rs2, 0b0000001);
+}
+
+uint32_t riscv64_remuw(int rd, int rs1, int rs2) {
+  return riscv_encode_r(0b0111011, rd, 0b111, rs1, rs2, 0b0000001);
+}
+
+// Pseudo-instructions
+uint32_t riscv64_nop(void) {
+  return riscv64_addi(RV_ZERO, RV_ZERO, 0);
+}
+
+uint32_t riscv64_mv(int rd, int rs) {
+  return riscv64_addi(rd, rs, 0);
+}
+
+uint32_t riscv64_not(int rd, int rs) {
+  return riscv64_xori(rd, rs, -1);
+}
+
+uint32_t riscv64_neg(int rd, int rs) {
+  return riscv64_sub(rd, RV_ZERO, rs);
+}
+
+uint32_t riscv64_li(int rd, int32_t imm) {
+  return riscv64_addi(rd, RV_ZERO, imm);
+}
+
+uint32_t riscv64_ret(void) {
+  return riscv64_jalr(RV_ZERO, RV_RA, 0);
+}
+
+uint32_t riscv64_jr(int rs) {
+  return riscv64_jalr(RV_ZERO, rs, 0);
+}
+
+uint32_t riscv64_j(int32_t offset) {
+  return riscv64_jal(RV_ZERO, offset);
+}

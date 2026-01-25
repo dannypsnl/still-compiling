@@ -508,4 +508,171 @@ x64_insn_t x64_inc(int rd);
 // DEC r64
 x64_insn_t x64_dec(int rd);
 
+// ============================================
+// RISC-V 64-bit register constants
+// ============================================
+#define RV_X0  0   // zero - hardwired zero
+#define RV_X1  1   // ra - return address
+#define RV_X2  2   // sp - stack pointer
+#define RV_X3  3   // gp - global pointer
+#define RV_X4  4   // tp - thread pointer
+#define RV_X5  5   // t0 - temporary
+#define RV_X6  6   // t1
+#define RV_X7  7   // t2
+#define RV_X8  8   // s0/fp - saved/frame pointer
+#define RV_X9  9   // s1 - saved
+#define RV_X10 10  // a0 - argument/return value
+#define RV_X11 11  // a1 - argument/return value
+#define RV_X12 12  // a2 - argument
+#define RV_X13 13  // a3
+#define RV_X14 14  // a4
+#define RV_X15 15  // a5
+#define RV_X16 16  // a6
+#define RV_X17 17  // a7
+#define RV_X18 18  // s2 - saved
+#define RV_X19 19  // s3
+#define RV_X20 20  // s4
+#define RV_X21 21  // s5
+#define RV_X22 22  // s6
+#define RV_X23 23  // s7
+#define RV_X24 24  // s8
+#define RV_X25 25  // s9
+#define RV_X26 26  // s10
+#define RV_X27 27  // s11
+#define RV_X28 28  // t3 - temporary
+#define RV_X29 29  // t4
+#define RV_X30 30  // t5
+#define RV_X31 31  // t6
+
+// ABI name aliases
+#define RV_ZERO RV_X0
+#define RV_RA   RV_X1
+#define RV_SP   RV_X2
+#define RV_GP   RV_X3
+#define RV_TP   RV_X4
+#define RV_T0   RV_X5
+#define RV_T1   RV_X6
+#define RV_T2   RV_X7
+#define RV_S0   RV_X8
+#define RV_FP   RV_X8
+#define RV_S1   RV_X9
+#define RV_A0   RV_X10
+#define RV_A1   RV_X11
+#define RV_A2   RV_X12
+#define RV_A3   RV_X13
+#define RV_A4   RV_X14
+#define RV_A5   RV_X15
+#define RV_A6   RV_X16
+#define RV_A7   RV_X17
+#define RV_S2   RV_X18
+#define RV_S3   RV_X19
+#define RV_S4   RV_X20
+#define RV_S5   RV_X21
+#define RV_S6   RV_X22
+#define RV_S7   RV_X23
+#define RV_S8   RV_X24
+#define RV_S9   RV_X25
+#define RV_S10  RV_X26
+#define RV_S11  RV_X27
+#define RV_T3   RV_X28
+#define RV_T4   RV_X29
+#define RV_T5   RV_X30
+#define RV_T6   RV_X31
+
+// ============================================
+// RISC-V 64-bit instruction encoders (RV64I + RV64M)
+// ============================================
+
+// Arithmetic R-type
+uint32_t riscv64_add(int rd, int rs1, int rs2);
+uint32_t riscv64_sub(int rd, int rs1, int rs2);
+uint32_t riscv64_sll(int rd, int rs1, int rs2);
+uint32_t riscv64_slt(int rd, int rs1, int rs2);
+uint32_t riscv64_sltu(int rd, int rs1, int rs2);
+uint32_t riscv64_xor(int rd, int rs1, int rs2);
+uint32_t riscv64_srl(int rd, int rs1, int rs2);
+uint32_t riscv64_sra(int rd, int rs1, int rs2);
+uint32_t riscv64_or(int rd, int rs1, int rs2);
+uint32_t riscv64_and(int rd, int rs1, int rs2);
+
+// Arithmetic 64-bit word variants
+uint32_t riscv64_addw(int rd, int rs1, int rs2);
+uint32_t riscv64_subw(int rd, int rs1, int rs2);
+uint32_t riscv64_sllw(int rd, int rs1, int rs2);
+uint32_t riscv64_srlw(int rd, int rs1, int rs2);
+uint32_t riscv64_sraw(int rd, int rs1, int rs2);
+
+// Immediate arithmetic I-type
+uint32_t riscv64_addi(int rd, int rs1, int32_t imm);
+uint32_t riscv64_slti(int rd, int rs1, int32_t imm);
+uint32_t riscv64_sltiu(int rd, int rs1, int32_t imm);
+uint32_t riscv64_xori(int rd, int rs1, int32_t imm);
+uint32_t riscv64_ori(int rd, int rs1, int32_t imm);
+uint32_t riscv64_andi(int rd, int rs1, int32_t imm);
+uint32_t riscv64_slli(int rd, int rs1, uint32_t shamt);
+uint32_t riscv64_srli(int rd, int rs1, uint32_t shamt);
+uint32_t riscv64_srai(int rd, int rs1, uint32_t shamt);
+
+// Immediate 64-bit word variants
+uint32_t riscv64_addiw(int rd, int rs1, int32_t imm);
+uint32_t riscv64_slliw(int rd, int rs1, uint32_t shamt);
+uint32_t riscv64_srliw(int rd, int rs1, uint32_t shamt);
+uint32_t riscv64_sraiw(int rd, int rs1, uint32_t shamt);
+
+// Load instructions
+uint32_t riscv64_ld(int rd, int rs1, int32_t offset);
+uint32_t riscv64_lw(int rd, int rs1, int32_t offset);
+uint32_t riscv64_lwu(int rd, int rs1, int32_t offset);
+uint32_t riscv64_lh(int rd, int rs1, int32_t offset);
+uint32_t riscv64_lhu(int rd, int rs1, int32_t offset);
+uint32_t riscv64_lb(int rd, int rs1, int32_t offset);
+uint32_t riscv64_lbu(int rd, int rs1, int32_t offset);
+
+// Store instructions
+uint32_t riscv64_sd(int rs2, int rs1, int32_t offset);
+uint32_t riscv64_sw(int rs2, int rs1, int32_t offset);
+uint32_t riscv64_sh(int rs2, int rs1, int32_t offset);
+uint32_t riscv64_sb(int rs2, int rs1, int32_t offset);
+
+// Upper immediate
+uint32_t riscv64_lui(int rd, uint32_t imm);
+uint32_t riscv64_auipc(int rd, uint32_t imm);
+
+// Branch instructions
+uint32_t riscv64_beq(int rs1, int rs2, int32_t offset);
+uint32_t riscv64_bne(int rs1, int rs2, int32_t offset);
+uint32_t riscv64_blt(int rs1, int rs2, int32_t offset);
+uint32_t riscv64_bge(int rs1, int rs2, int32_t offset);
+uint32_t riscv64_bltu(int rs1, int rs2, int32_t offset);
+uint32_t riscv64_bgeu(int rs1, int rs2, int32_t offset);
+
+// Jump instructions
+uint32_t riscv64_jal(int rd, int32_t offset);
+uint32_t riscv64_jalr(int rd, int rs1, int32_t imm);
+
+// RV64M - Multiply/Divide extension
+uint32_t riscv64_mul(int rd, int rs1, int rs2);
+uint32_t riscv64_mulh(int rd, int rs1, int rs2);
+uint32_t riscv64_mulhsu(int rd, int rs1, int rs2);
+uint32_t riscv64_mulhu(int rd, int rs1, int rs2);
+uint32_t riscv64_div(int rd, int rs1, int rs2);
+uint32_t riscv64_divu(int rd, int rs1, int rs2);
+uint32_t riscv64_rem(int rd, int rs1, int rs2);
+uint32_t riscv64_remu(int rd, int rs1, int rs2);
+uint32_t riscv64_mulw(int rd, int rs1, int rs2);
+uint32_t riscv64_divw(int rd, int rs1, int rs2);
+uint32_t riscv64_divuw(int rd, int rs1, int rs2);
+uint32_t riscv64_remw(int rd, int rs1, int rs2);
+uint32_t riscv64_remuw(int rd, int rs1, int rs2);
+
+// Pseudo-instructions
+uint32_t riscv64_nop(void);
+uint32_t riscv64_mv(int rd, int rs);
+uint32_t riscv64_not(int rd, int rs);
+uint32_t riscv64_neg(int rd, int rs);
+uint32_t riscv64_li(int rd, int32_t imm);
+uint32_t riscv64_ret(void);
+uint32_t riscv64_jr(int rs);
+uint32_t riscv64_j(int32_t offset);
+
 #endif // DYNASM_H
