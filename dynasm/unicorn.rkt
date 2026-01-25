@@ -54,11 +54,14 @@
 (define UC_ARCH_ARM 1)
 (define UC_ARCH_ARM64 2)
 (define UC_ARCH_X86 4)
+(define UC_ARCH_RISCV 9)
 
 ;; Mode types
 (define UC_MODE_ARM 0)
 (define UC_MODE_LITTLE_ENDIAN 0)
 (define UC_MODE_64 8)  ; 64-bit mode for x86
+(define UC_MODE_RISCV32 16)  ; 32-bit RISC-V
+(define UC_MODE_RISCV64 32)  ; 64-bit RISC-V
 
 ;; Error codes
 (define UC_ERR_OK 0)
@@ -160,6 +163,148 @@
 (define UC_X86_REG_R14 112)
 (define UC_X86_REG_R15 113)
 
+;; RISC-V registers (from unicorn/riscv.h - Unicorn 2.x values)
+(define UC_RISCV_REG_INVALID 0)
+
+;; General purpose registers (X0-X31)
+(define UC_RISCV_REG_X0 1)
+(define UC_RISCV_REG_X1 2)
+(define UC_RISCV_REG_X2 3)
+(define UC_RISCV_REG_X3 4)
+(define UC_RISCV_REG_X4 5)
+(define UC_RISCV_REG_X5 6)
+(define UC_RISCV_REG_X6 7)
+(define UC_RISCV_REG_X7 8)
+(define UC_RISCV_REG_X8 9)
+(define UC_RISCV_REG_X9 10)
+(define UC_RISCV_REG_X10 11)
+(define UC_RISCV_REG_X11 12)
+(define UC_RISCV_REG_X12 13)
+(define UC_RISCV_REG_X13 14)
+(define UC_RISCV_REG_X14 15)
+(define UC_RISCV_REG_X15 16)
+(define UC_RISCV_REG_X16 17)
+(define UC_RISCV_REG_X17 18)
+(define UC_RISCV_REG_X18 19)
+(define UC_RISCV_REG_X19 20)
+(define UC_RISCV_REG_X20 21)
+(define UC_RISCV_REG_X21 22)
+(define UC_RISCV_REG_X22 23)
+(define UC_RISCV_REG_X23 24)
+(define UC_RISCV_REG_X24 25)
+(define UC_RISCV_REG_X25 26)
+(define UC_RISCV_REG_X26 27)
+(define UC_RISCV_REG_X27 28)
+(define UC_RISCV_REG_X28 29)
+(define UC_RISCV_REG_X29 30)
+(define UC_RISCV_REG_X30 31)
+(define UC_RISCV_REG_X31 32)
+
+;; Floating-point registers (F0-F31)
+(define UC_RISCV_REG_F0 33)
+(define UC_RISCV_REG_F1 34)
+(define UC_RISCV_REG_F2 35)
+(define UC_RISCV_REG_F3 36)
+(define UC_RISCV_REG_F4 37)
+(define UC_RISCV_REG_F5 38)
+(define UC_RISCV_REG_F6 39)
+(define UC_RISCV_REG_F7 40)
+(define UC_RISCV_REG_F8 41)
+(define UC_RISCV_REG_F9 42)
+(define UC_RISCV_REG_F10 43)
+(define UC_RISCV_REG_F11 44)
+(define UC_RISCV_REG_F12 45)
+(define UC_RISCV_REG_F13 46)
+(define UC_RISCV_REG_F14 47)
+(define UC_RISCV_REG_F15 48)
+(define UC_RISCV_REG_F16 49)
+(define UC_RISCV_REG_F17 50)
+(define UC_RISCV_REG_F18 51)
+(define UC_RISCV_REG_F19 52)
+(define UC_RISCV_REG_F20 53)
+(define UC_RISCV_REG_F21 54)
+(define UC_RISCV_REG_F22 55)
+(define UC_RISCV_REG_F23 56)
+(define UC_RISCV_REG_F24 57)
+(define UC_RISCV_REG_F25 58)
+(define UC_RISCV_REG_F26 59)
+(define UC_RISCV_REG_F27 60)
+(define UC_RISCV_REG_F28 61)
+(define UC_RISCV_REG_F29 62)
+(define UC_RISCV_REG_F30 63)
+(define UC_RISCV_REG_F31 64)
+
+(define UC_RISCV_REG_PC 65)
+
+;; ABI name aliases for general purpose registers
+(define UC_RISCV_REG_ZERO UC_RISCV_REG_X0)  ; zero
+(define UC_RISCV_REG_RA UC_RISCV_REG_X1)    ; ra (return address)
+(define UC_RISCV_REG_SP UC_RISCV_REG_X2)    ; sp (stack pointer)
+(define UC_RISCV_REG_GP UC_RISCV_REG_X3)    ; gp (global pointer)
+(define UC_RISCV_REG_TP UC_RISCV_REG_X4)    ; tp (thread pointer)
+(define UC_RISCV_REG_T0 UC_RISCV_REG_X5)    ; t0 (temporary)
+(define UC_RISCV_REG_T1 UC_RISCV_REG_X6)    ; t1
+(define UC_RISCV_REG_T2 UC_RISCV_REG_X7)    ; t2
+(define UC_RISCV_REG_S0 UC_RISCV_REG_X8)    ; s0/fp (saved/frame pointer)
+(define UC_RISCV_REG_FP UC_RISCV_REG_X8)    ; fp (frame pointer)
+(define UC_RISCV_REG_S1 UC_RISCV_REG_X9)    ; s1
+(define UC_RISCV_REG_A0 UC_RISCV_REG_X10)   ; a0 (argument/return value)
+(define UC_RISCV_REG_A1 UC_RISCV_REG_X11)   ; a1
+(define UC_RISCV_REG_A2 UC_RISCV_REG_X12)   ; a2
+(define UC_RISCV_REG_A3 UC_RISCV_REG_X13)   ; a3
+(define UC_RISCV_REG_A4 UC_RISCV_REG_X14)   ; a4
+(define UC_RISCV_REG_A5 UC_RISCV_REG_X15)   ; a5
+(define UC_RISCV_REG_A6 UC_RISCV_REG_X16)   ; a6
+(define UC_RISCV_REG_A7 UC_RISCV_REG_X17)   ; a7
+(define UC_RISCV_REG_S2 UC_RISCV_REG_X18)   ; s2
+(define UC_RISCV_REG_S3 UC_RISCV_REG_X19)   ; s3
+(define UC_RISCV_REG_S4 UC_RISCV_REG_X20)   ; s4
+(define UC_RISCV_REG_S5 UC_RISCV_REG_X21)   ; s5
+(define UC_RISCV_REG_S6 UC_RISCV_REG_X22)   ; s6
+(define UC_RISCV_REG_S7 UC_RISCV_REG_X23)   ; s7
+(define UC_RISCV_REG_S8 UC_RISCV_REG_X24)   ; s8
+(define UC_RISCV_REG_S9 UC_RISCV_REG_X25)   ; s9
+(define UC_RISCV_REG_S10 UC_RISCV_REG_X26)  ; s10
+(define UC_RISCV_REG_S11 UC_RISCV_REG_X27)  ; s11
+(define UC_RISCV_REG_T3 UC_RISCV_REG_X28)   ; t3
+(define UC_RISCV_REG_T4 UC_RISCV_REG_X29)   ; t4
+(define UC_RISCV_REG_T5 UC_RISCV_REG_X30)   ; t5
+(define UC_RISCV_REG_T6 UC_RISCV_REG_X31)   ; t6
+
+;; ABI name aliases for floating-point registers
+(define UC_RISCV_REG_FT0 UC_RISCV_REG_F0)   ; ft0
+(define UC_RISCV_REG_FT1 UC_RISCV_REG_F1)   ; ft1
+(define UC_RISCV_REG_FT2 UC_RISCV_REG_F2)   ; ft2
+(define UC_RISCV_REG_FT3 UC_RISCV_REG_F3)   ; ft3
+(define UC_RISCV_REG_FT4 UC_RISCV_REG_F4)   ; ft4
+(define UC_RISCV_REG_FT5 UC_RISCV_REG_F5)   ; ft5
+(define UC_RISCV_REG_FT6 UC_RISCV_REG_F6)   ; ft6
+(define UC_RISCV_REG_FT7 UC_RISCV_REG_F7)   ; ft7
+(define UC_RISCV_REG_FS0 UC_RISCV_REG_F8)   ; fs0
+(define UC_RISCV_REG_FS1 UC_RISCV_REG_F9)   ; fs1
+(define UC_RISCV_REG_FA0 UC_RISCV_REG_F10)  ; fa0
+(define UC_RISCV_REG_FA1 UC_RISCV_REG_F11)  ; fa1
+(define UC_RISCV_REG_FA2 UC_RISCV_REG_F12)  ; fa2
+(define UC_RISCV_REG_FA3 UC_RISCV_REG_F13)  ; fa3
+(define UC_RISCV_REG_FA4 UC_RISCV_REG_F14)  ; fa4
+(define UC_RISCV_REG_FA5 UC_RISCV_REG_F15)  ; fa5
+(define UC_RISCV_REG_FA6 UC_RISCV_REG_F16)  ; fa6
+(define UC_RISCV_REG_FA7 UC_RISCV_REG_F17)  ; fa7
+(define UC_RISCV_REG_FS2 UC_RISCV_REG_F18)  ; fs2
+(define UC_RISCV_REG_FS3 UC_RISCV_REG_F19)  ; fs3
+(define UC_RISCV_REG_FS4 UC_RISCV_REG_F20)  ; fs4
+(define UC_RISCV_REG_FS5 UC_RISCV_REG_F21)  ; fs5
+(define UC_RISCV_REG_FS6 UC_RISCV_REG_F22)  ; fs6
+(define UC_RISCV_REG_FS7 UC_RISCV_REG_F23)  ; fs7
+(define UC_RISCV_REG_FS8 UC_RISCV_REG_F24)  ; fs8
+(define UC_RISCV_REG_FS9 UC_RISCV_REG_F25)  ; fs9
+(define UC_RISCV_REG_FS10 UC_RISCV_REG_F26) ; fs10
+(define UC_RISCV_REG_FS11 UC_RISCV_REG_F27) ; fs11
+(define UC_RISCV_REG_FT8 UC_RISCV_REG_F28)  ; ft8
+(define UC_RISCV_REG_FT9 UC_RISCV_REG_F29)  ; ft9
+(define UC_RISCV_REG_FT10 UC_RISCV_REG_F30) ; ft10
+(define UC_RISCV_REG_FT11 UC_RISCV_REG_F31) ; ft11
+
 ;; ============================================
 ;; Core API
 ;; ============================================
@@ -245,6 +390,20 @@
     (error 'uc-create-x64 "Failed to create unicorn instance: ~a" (uc-strerror err)))
   uc)
 
+;; Create a new RISC-V 32-bit emulator instance
+(define (uc-create-riscv32)
+  (define-values (err uc) (uc-open UC_ARCH_RISCV UC_MODE_RISCV32))
+  (unless (= err UC_ERR_OK)
+    (error 'uc-create-riscv32 "Failed to create unicorn instance: ~a" (uc-strerror err)))
+  uc)
+
+;; Create a new RISC-V 64-bit emulator instance
+(define (uc-create-riscv64)
+  (define-values (err uc) (uc-open UC_ARCH_RISCV UC_MODE_RISCV64))
+  (unless (= err UC_ERR_OK)
+    (error 'uc-create-riscv64 "Failed to create unicorn instance: ~a" (uc-strerror err)))
+  uc)
+
 ;; Write a 64-bit value to a register
 (define (uc-reg-write-u64 uc regid value)
   (define buf (make-bytes 8))
@@ -259,6 +418,22 @@
   (define err (uc-reg-read uc regid buf))
   (unless (= err UC_ERR_OK)
     (error 'uc-reg-read-u64 "Failed to read register: ~a" (uc-strerror err)))
+  (integer-bytes->integer buf #f #f))
+
+;; Write a 32-bit value to a register
+(define (uc-reg-write-u32 uc regid value)
+  (define buf (make-bytes 4))
+  (integer->integer-bytes value 4 #f #f buf)
+  (define err (uc-reg-write uc regid buf))
+  (unless (= err UC_ERR_OK)
+    (error 'uc-reg-write-u32 "Failed to write register: ~a" (uc-strerror err))))
+
+;; Read a 32-bit value from a register
+(define (uc-reg-read-u32 uc regid)
+  (define buf (make-bytes 4))
+  (define err (uc-reg-read uc regid buf))
+  (unless (= err UC_ERR_OK)
+    (error 'uc-reg-read-u32 "Failed to read register: ~a" (uc-strerror err)))
   (integer-bytes->integer buf #f #f))
 
 ;; Write a 128-bit value to a SIMD register (V0-V31)
@@ -303,9 +478,12 @@
  ;; Constants
  UC_ARCH_ARM64
  UC_ARCH_X86
+ UC_ARCH_RISCV
  UC_MODE_ARM
  UC_MODE_LITTLE_ENDIAN
  UC_MODE_64
+ UC_MODE_RISCV32
+ UC_MODE_RISCV64
  UC_ERR_OK
  UC_PROT_NONE
  UC_PROT_READ
@@ -344,6 +522,52 @@
  UC_X86_REG_R12 UC_X86_REG_R13 UC_X86_REG_R14 UC_X86_REG_R15
  UC_X86_REG_RIP
 
+ ;; RISC-V GP registers (X0-X31)
+ UC_RISCV_REG_INVALID
+ UC_RISCV_REG_X0 UC_RISCV_REG_X1 UC_RISCV_REG_X2 UC_RISCV_REG_X3
+ UC_RISCV_REG_X4 UC_RISCV_REG_X5 UC_RISCV_REG_X6 UC_RISCV_REG_X7
+ UC_RISCV_REG_X8 UC_RISCV_REG_X9 UC_RISCV_REG_X10 UC_RISCV_REG_X11
+ UC_RISCV_REG_X12 UC_RISCV_REG_X13 UC_RISCV_REG_X14 UC_RISCV_REG_X15
+ UC_RISCV_REG_X16 UC_RISCV_REG_X17 UC_RISCV_REG_X18 UC_RISCV_REG_X19
+ UC_RISCV_REG_X20 UC_RISCV_REG_X21 UC_RISCV_REG_X22 UC_RISCV_REG_X23
+ UC_RISCV_REG_X24 UC_RISCV_REG_X25 UC_RISCV_REG_X26 UC_RISCV_REG_X27
+ UC_RISCV_REG_X28 UC_RISCV_REG_X29 UC_RISCV_REG_X30 UC_RISCV_REG_X31
+
+ ;; RISC-V FP registers (F0-F31)
+ UC_RISCV_REG_F0 UC_RISCV_REG_F1 UC_RISCV_REG_F2 UC_RISCV_REG_F3
+ UC_RISCV_REG_F4 UC_RISCV_REG_F5 UC_RISCV_REG_F6 UC_RISCV_REG_F7
+ UC_RISCV_REG_F8 UC_RISCV_REG_F9 UC_RISCV_REG_F10 UC_RISCV_REG_F11
+ UC_RISCV_REG_F12 UC_RISCV_REG_F13 UC_RISCV_REG_F14 UC_RISCV_REG_F15
+ UC_RISCV_REG_F16 UC_RISCV_REG_F17 UC_RISCV_REG_F18 UC_RISCV_REG_F19
+ UC_RISCV_REG_F20 UC_RISCV_REG_F21 UC_RISCV_REG_F22 UC_RISCV_REG_F23
+ UC_RISCV_REG_F24 UC_RISCV_REG_F25 UC_RISCV_REG_F26 UC_RISCV_REG_F27
+ UC_RISCV_REG_F28 UC_RISCV_REG_F29 UC_RISCV_REG_F30 UC_RISCV_REG_F31
+
+ ;; RISC-V special registers
+ UC_RISCV_REG_PC
+
+ ;; RISC-V ABI name aliases (GP registers)
+ UC_RISCV_REG_ZERO UC_RISCV_REG_RA UC_RISCV_REG_SP UC_RISCV_REG_GP
+ UC_RISCV_REG_TP UC_RISCV_REG_T0 UC_RISCV_REG_T1 UC_RISCV_REG_T2
+ UC_RISCV_REG_S0 UC_RISCV_REG_FP UC_RISCV_REG_S1
+ UC_RISCV_REG_A0 UC_RISCV_REG_A1 UC_RISCV_REG_A2 UC_RISCV_REG_A3
+ UC_RISCV_REG_A4 UC_RISCV_REG_A5 UC_RISCV_REG_A6 UC_RISCV_REG_A7
+ UC_RISCV_REG_S2 UC_RISCV_REG_S3 UC_RISCV_REG_S4 UC_RISCV_REG_S5
+ UC_RISCV_REG_S6 UC_RISCV_REG_S7 UC_RISCV_REG_S8 UC_RISCV_REG_S9
+ UC_RISCV_REG_S10 UC_RISCV_REG_S11
+ UC_RISCV_REG_T3 UC_RISCV_REG_T4 UC_RISCV_REG_T5 UC_RISCV_REG_T6
+
+ ;; RISC-V ABI name aliases (FP registers)
+ UC_RISCV_REG_FT0 UC_RISCV_REG_FT1 UC_RISCV_REG_FT2 UC_RISCV_REG_FT3
+ UC_RISCV_REG_FT4 UC_RISCV_REG_FT5 UC_RISCV_REG_FT6 UC_RISCV_REG_FT7
+ UC_RISCV_REG_FS0 UC_RISCV_REG_FS1
+ UC_RISCV_REG_FA0 UC_RISCV_REG_FA1 UC_RISCV_REG_FA2 UC_RISCV_REG_FA3
+ UC_RISCV_REG_FA4 UC_RISCV_REG_FA5 UC_RISCV_REG_FA6 UC_RISCV_REG_FA7
+ UC_RISCV_REG_FS2 UC_RISCV_REG_FS3 UC_RISCV_REG_FS4 UC_RISCV_REG_FS5
+ UC_RISCV_REG_FS6 UC_RISCV_REG_FS7 UC_RISCV_REG_FS8 UC_RISCV_REG_FS9
+ UC_RISCV_REG_FS10 UC_RISCV_REG_FS11
+ UC_RISCV_REG_FT8 UC_RISCV_REG_FT9 UC_RISCV_REG_FT10 UC_RISCV_REG_FT11
+
  ;; Core API
  uc-open
  uc-close
@@ -358,8 +582,12 @@
  ;; Helper functions
  uc-create-arm64
  uc-create-x64
+ uc-create-riscv32
+ uc-create-riscv64
  uc-reg-write-u64
  uc-reg-read-u64
+ uc-reg-write-u32
+ uc-reg-read-u32
  uc-reg-write-u128
  uc-reg-read-u128
  uc-map-memory
