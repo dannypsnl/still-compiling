@@ -162,6 +162,14 @@
   (_fun _int _int _uint16 -> _uint32)
   #:c-id aarch64_str_imm)
 
+(define-dynasm aarch64-ldrb-imm
+  (_fun _int _int _uint16 -> _uint32)
+  #:c-id aarch64_ldrb_imm)
+
+(define-dynasm aarch64-strb-imm
+  (_fun _int _int _uint16 -> _uint32)
+  #:c-id aarch64_strb_imm)
+
 (define-dynasm aarch64-stp-pre
   (_fun _int _int _int _int16 -> _uint32)
   #:c-id aarch64_stp_pre)
@@ -1148,6 +1156,8 @@
  aarch64-br
  aarch64-ldr-imm
  aarch64-str-imm
+ aarch64-ldrb-imm
+ aarch64-strb-imm
  aarch64-stp-pre
  aarch64-ldp-post
  aarch64-cmp-reg

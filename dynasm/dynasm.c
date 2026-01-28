@@ -387,6 +387,20 @@ uint32_t aarch64_str_imm(int rt, int rn, uint16_t offset) {
          ((rn & 0x1F) << 5) | (rt & 0x1F);
 }
 
+// LDRB (immediate, unsigned offset)
+// 00 111 0 01 01 imm12 Rn Rt
+uint32_t aarch64_ldrb_imm(int rt, int rn, uint16_t offset) {
+  return (0b00111001 << 24) | (0b01 << 22) | ((offset & 0xFFF) << 10) |
+         ((rn & 0x1F) << 5) | (rt & 0x1F);
+}
+
+// STRB (immediate, unsigned offset)
+// 00 111 0 01 00 imm12 Rn Rt
+uint32_t aarch64_strb_imm(int rt, int rn, uint16_t offset) {
+  return (0b00111001 << 24) | (0b00 << 22) | ((offset & 0xFFF) << 10) |
+         ((rn & 0x1F) << 5) | (rt & 0x1F);
+}
+
 // STP (pre-index): Store pair with pre-index writeback
 // 64-bit: 10 101 0 011 imm7 Rt2 Rn Rt
 uint32_t aarch64_stp_pre(int rt1, int rt2, int rn, int16_t offset) {

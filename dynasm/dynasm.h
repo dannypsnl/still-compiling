@@ -111,6 +111,12 @@ uint32_t aarch64_ldr_imm(int rt, int rn, uint16_t offset);
 // STR immediate (unsigned offset): store 64-bit to [base + offset*8]
 uint32_t aarch64_str_imm(int rt, int rn, uint16_t offset);
 
+// LDRB immediate (unsigned offset): load byte from [base + offset]
+uint32_t aarch64_ldrb_imm(int rt, int rn, uint16_t offset);
+
+// STRB immediate (unsigned offset): store byte to [base + offset]
+uint32_t aarch64_strb_imm(int rt, int rn, uint16_t offset);
+
 // STP: store pair of registers (pre-index)
 uint32_t aarch64_stp_pre(int rt1, int rt2, int rn, int16_t offset);
 
