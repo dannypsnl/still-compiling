@@ -96,6 +96,48 @@
   (uc-close uc)
   result)
 
+;; ============================================
+;; RISC-V test helpers
+;; ============================================
+
+(define (run-uc-rv64-with-regs code-bytes init-regs)
+  (define CODE-ADDRESS #x10000)
+  (define STOP-ADDRESS #x20000)
+  (define STACK-ADDRESS #x30000)
+  (define uc (uc-create-riscv64))
+  (uc-map-memory uc CODE-ADDRESS #x1000)
+  (uc-map-memory uc STOP-ADDRESS #x1000)
+  (uc-map-memory uc STACK-ADDRESS #x10000)
+  (uc-write-code uc CODE-ADDRESS code-bytes)
+  ;; Set RA to STOP-ADDRESS so ret works
+  (uc-reg-write-u64 uc UC_RISCV_REG_RA STOP-ADDRESS)
+  ;; Set SP to middle of stack region
+  (uc-reg-write-u64 uc UC_RISCV_REG_SP (+ STACK-ADDRESS #x8000))
+  ;; Initialize registers
+  (for ([reg-pair init-regs])
+    (uc-reg-write-u64 uc (car reg-pair) (cdr reg-pair)))
+  (uc-emu-start uc CODE-ADDRESS STOP-ADDRESS 0 0)
+  ;; Read result from A0 (X10)
+  (define result (uc-reg-read-u64 uc UC_RISCV_REG_A0))
+  (uc-close uc)
+  result)
+
+(define (run-rv64 thunk)
+  (let ([buf (dynasm-create 4096)])
+    (thunk buf)
+    (define code-bytes (get-code-bytes buf))
+    (define result (run-uc-rv64-with-regs code-bytes '()))
+    (dynasm-free buf)
+    result))
+
+(define (run-rv64-with thunk init-regs)
+  (let ([buf (dynasm-create 4096)])
+    (thunk buf)
+    (define code-bytes (get-code-bytes buf))
+    (define result (run-uc-rv64-with-regs code-bytes init-regs))
+    (dynasm-free buf)
+    result))
+
 (define tests
   (test-suite
    "Tests"
@@ -1025,6 +1067,917 @@
                              (list (cons UC_X86_REG_RAX 42))))
      (dynasm-free buf)
      (check-equal? result 42))
+
+   ;; ============================================
+   ;; RISC-V 64-bit instruction tests
+   ;; ============================================
+
+   ;; --- R-type arithmetic ---
+
+   (test-case "rv64 - add"
+     (displayln "  rv64 add...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-add RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 10)
+             (cons UC_RISCV_REG_X12 32)))
+      42))
+
+   (test-case "rv64 - sub"
+     (displayln "  rv64 sub...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sub RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 100)
+             (cons UC_RISCV_REG_X12 58)))
+      42))
+
+   (test-case "rv64 - sll"
+     (displayln "  rv64 sll...")
+     ;; 21 << 1 = 42
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sll RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 21)
+             (cons UC_RISCV_REG_X12 1)))
+      42))
+
+   (test-case "rv64 - slt (less)"
+     (displayln "  rv64 slt less...")
+     ;; 5 < 10 → 1
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-slt RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 5)
+             (cons UC_RISCV_REG_X12 10)))
+      1))
+
+   (test-case "rv64 - slt (not less)"
+     (displayln "  rv64 slt not less...")
+     ;; 10 < 5 → 0
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-slt RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 10)
+             (cons UC_RISCV_REG_X12 5)))
+      0))
+
+   (test-case "rv64 - sltu"
+     (displayln "  rv64 sltu...")
+     ;; unsigned: 5 < 10 → 1
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sltu RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 5)
+             (cons UC_RISCV_REG_X12 10)))
+      1))
+
+   (test-case "rv64 - xor"
+     (displayln "  rv64 xor...")
+     ;; 0xFF ^ 0xD5 = 0x2A = 42
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-xor RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 #xFF)
+             (cons UC_RISCV_REG_X12 #xD5)))
+      #x2A))
+
+   (test-case "rv64 - srl"
+     (displayln "  rv64 srl...")
+     ;; 84 >> 1 = 42
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-srl RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 84)
+             (cons UC_RISCV_REG_X12 1)))
+      42))
+
+   (test-case "rv64 - sra"
+     (displayln "  rv64 sra...")
+     ;; 168 >> 2 = 42 (positive value, same as srl)
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sra RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 168)
+             (cons UC_RISCV_REG_X12 2)))
+      42))
+
+   (test-case "rv64 - or"
+     (displayln "  rv64 or...")
+     ;; 0x20 | 0x0A = 0x2A = 42
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-or RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 #x20)
+             (cons UC_RISCV_REG_X12 #x0A)))
+      #x2A))
+
+   (test-case "rv64 - and"
+     (displayln "  rv64 and...")
+     ;; 0xFF & 0x2A = 0x2A = 42
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-and RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 #xFF)
+             (cons UC_RISCV_REG_X12 #x2A)))
+      #x2A))
+
+   ;; --- W-type (32-bit word operations) ---
+
+   (test-case "rv64 - addw"
+     (displayln "  rv64 addw...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-addw RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 10)
+             (cons UC_RISCV_REG_X12 32)))
+      42))
+
+   (test-case "rv64 - subw"
+     (displayln "  rv64 subw...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-subw RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 100)
+             (cons UC_RISCV_REG_X12 58)))
+      42))
+
+   (test-case "rv64 - sllw"
+     (displayln "  rv64 sllw...")
+     ;; 21 << 1 = 42 (32-bit)
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sllw RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 21)
+             (cons UC_RISCV_REG_X12 1)))
+      42))
+
+   (test-case "rv64 - srlw"
+     (displayln "  rv64 srlw...")
+     ;; 84 >> 1 = 42 (32-bit logical)
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-srlw RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 84)
+             (cons UC_RISCV_REG_X12 1)))
+      42))
+
+   (test-case "rv64 - sraw"
+     (displayln "  rv64 sraw...")
+     ;; 168 >> 2 = 42 (32-bit arithmetic, positive)
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sraw RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 168)
+             (cons UC_RISCV_REG_X12 2)))
+      42))
+
+   ;; --- I-type immediate arithmetic ---
+
+   (test-case "rv64 - addi"
+     (displayln "  rv64 addi...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-addi RV-A0 RV-A1 32))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 10)))
+      42))
+
+   (test-case "rv64 - slti (less)"
+     (displayln "  rv64 slti...")
+     ;; 5 < 100 → 1
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-slti RV-A0 RV-A1 100))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 5)))
+      1))
+
+   (test-case "rv64 - sltiu"
+     (displayln "  rv64 sltiu...")
+     ;; unsigned: 5 < 100 → 1
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sltiu RV-A0 RV-A1 100))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 5)))
+      1))
+
+   (test-case "rv64 - xori"
+     (displayln "  rv64 xori...")
+     ;; 0xFF ^ 0xD5 = 0x2A
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-xori RV-A0 RV-A1 #xD5))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 #xFF)))
+      #x2A))
+
+   (test-case "rv64 - ori"
+     (displayln "  rv64 ori...")
+     ;; 0x20 | 0x0A = 0x2A
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-ori RV-A0 RV-A1 #x0A))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 #x20)))
+      #x2A))
+
+   (test-case "rv64 - andi"
+     (displayln "  rv64 andi...")
+     ;; 0xFF & 0x2A = 0x2A
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-andi RV-A0 RV-A1 #x2A))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 #xFF)))
+      #x2A))
+
+   (test-case "rv64 - slli"
+     (displayln "  rv64 slli...")
+     ;; 21 << 1 = 42
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-slli RV-A0 RV-A1 1))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 21)))
+      42))
+
+   (test-case "rv64 - srli"
+     (displayln "  rv64 srli...")
+     ;; 84 >> 1 = 42
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-srli RV-A0 RV-A1 1))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 84)))
+      42))
+
+   (test-case "rv64 - srai"
+     (displayln "  rv64 srai...")
+     ;; 168 >> 2 = 42
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-srai RV-A0 RV-A1 2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 168)))
+      42))
+
+   ;; --- W immediate variants ---
+
+   (test-case "rv64 - addiw"
+     (displayln "  rv64 addiw...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-addiw RV-A0 RV-A1 32))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 10)))
+      42))
+
+   (test-case "rv64 - slliw"
+     (displayln "  rv64 slliw...")
+     ;; 21 << 1 = 42 (32-bit)
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-slliw RV-A0 RV-A1 1))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 21)))
+      42))
+
+   (test-case "rv64 - srliw"
+     (displayln "  rv64 srliw...")
+     ;; 84 >> 1 = 42 (32-bit logical)
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-srliw RV-A0 RV-A1 1))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 84)))
+      42))
+
+   (test-case "rv64 - sraiw"
+     (displayln "  rv64 sraiw...")
+     ;; 168 >> 2 = 42 (32-bit arithmetic)
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sraiw RV-A0 RV-A1 2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 168)))
+      42))
+
+   ;; --- Load/Store ---
+
+   (test-case "rv64 - sd/ld (doubleword)"
+     (displayln "  rv64 sd/ld...")
+     ;; Store 42 to [SP+0], load it back
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sd RV-A1 RV-SP 0))
+         (emit! buf (riscv64-ld RV-A0 RV-SP 0))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 42)))
+      42))
+
+   (test-case "rv64 - sw/lw (word, sign-extended)"
+     (displayln "  rv64 sw/lw...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sw RV-A1 RV-SP 0))
+         (emit! buf (riscv64-lw RV-A0 RV-SP 0))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 42)))
+      42))
+
+   (test-case "rv64 - sw/lwu (word, zero-extended)"
+     (displayln "  rv64 sw/lwu...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sw RV-A1 RV-SP 0))
+         (emit! buf (riscv64-lwu RV-A0 RV-SP 0))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 42)))
+      42))
+
+   (test-case "rv64 - sh/lh (halfword, sign-extended)"
+     (displayln "  rv64 sh/lh...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sh RV-A1 RV-SP 0))
+         (emit! buf (riscv64-lh RV-A0 RV-SP 0))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 42)))
+      42))
+
+   (test-case "rv64 - sh/lhu (halfword, zero-extended)"
+     (displayln "  rv64 sh/lhu...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sh RV-A1 RV-SP 0))
+         (emit! buf (riscv64-lhu RV-A0 RV-SP 0))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 42)))
+      42))
+
+   (test-case "rv64 - sb/lb (byte, sign-extended)"
+     (displayln "  rv64 sb/lb...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sb RV-A1 RV-SP 0))
+         (emit! buf (riscv64-lb RV-A0 RV-SP 0))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 42)))
+      42))
+
+   (test-case "rv64 - sb/lbu (byte, zero-extended)"
+     (displayln "  rv64 sb/lbu...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sb RV-A1 RV-SP 0))
+         (emit! buf (riscv64-lbu RV-A0 RV-SP 0))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 42)))
+      42))
+
+   (test-case "rv64 - sd/ld with offset"
+     (displayln "  rv64 sd/ld offset...")
+     ;; Store at [SP+16], load from [SP+16]
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-sd RV-A1 RV-SP 16))
+         (emit! buf (riscv64-ld RV-A0 RV-SP 16))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 42)))
+      42))
+
+   ;; --- Upper immediate ---
+
+   (test-case "rv64 - lui"
+     (displayln "  rv64 lui...")
+     ;; lui a0, #x1000 → a0 = 4096 (upper bits already in position)
+     (check-equal?
+      (run-rv64
+       (lambda (buf)
+         (emit! buf (riscv64-lui RV-A0 #x1000))
+         (emit! buf (riscv64-ret))))
+      4096))
+
+   (test-case "rv64 - lui + addi"
+     (displayln "  rv64 lui+addi...")
+     ;; lui a0, #x1000; addi a0, a0, 42 → a0 = 4096 + 42 = 4138
+     (check-equal?
+      (run-rv64
+       (lambda (buf)
+         (emit! buf (riscv64-lui RV-A0 #x1000))
+         (emit! buf (riscv64-addi RV-A0 RV-A0 42))
+         (emit! buf (riscv64-ret))))
+      4138))
+
+   (test-case "rv64 - auipc"
+     (displayln "  rv64 auipc...")
+     ;; auipc a0, 0 → a0 = PC = CODE-ADDRESS = 0x10000
+     (check-equal?
+      (run-rv64
+       (lambda (buf)
+         (emit! buf (riscv64-auipc RV-A0 0))
+         (emit! buf (riscv64-ret))))
+      #x10000))
+
+   ;; --- Branch instructions ---
+
+   (test-case "rv64 - beq (taken)"
+     (displayln "  rv64 beq taken...")
+     ;; beq a1, a2, 12 → skip li+ret, land on second li
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-beq RV-A1 RV-A2 12))    ; PC+0: if a1==a2, jump to PC+12
+         (emit! buf (riscv64-li RV-A0 99))            ; PC+4: not-taken
+         (emit! buf (riscv64-ret))                     ; PC+8
+         (emit! buf (riscv64-li RV-A0 42))            ; PC+12: taken
+         (emit! buf (riscv64-ret)))                    ; PC+16
+       (list (cons UC_RISCV_REG_X11 10)
+             (cons UC_RISCV_REG_X12 10)))
+      42))
+
+   (test-case "rv64 - beq (not taken)"
+     (displayln "  rv64 beq not taken...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-beq RV-A1 RV-A2 12))
+         (emit! buf (riscv64-li RV-A0 42))
+         (emit! buf (riscv64-ret))
+         (emit! buf (riscv64-li RV-A0 99))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 10)
+             (cons UC_RISCV_REG_X12 20)))
+      42))
+
+   (test-case "rv64 - bne (taken)"
+     (displayln "  rv64 bne taken...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-bne RV-A1 RV-A2 12))
+         (emit! buf (riscv64-li RV-A0 99))
+         (emit! buf (riscv64-ret))
+         (emit! buf (riscv64-li RV-A0 42))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 10)
+             (cons UC_RISCV_REG_X12 20)))
+      42))
+
+   (test-case "rv64 - blt (taken)"
+     (displayln "  rv64 blt taken...")
+     ;; 5 < 10 → taken
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-blt RV-A1 RV-A2 12))
+         (emit! buf (riscv64-li RV-A0 99))
+         (emit! buf (riscv64-ret))
+         (emit! buf (riscv64-li RV-A0 42))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 5)
+             (cons UC_RISCV_REG_X12 10)))
+      42))
+
+   (test-case "rv64 - bge (taken)"
+     (displayln "  rv64 bge taken...")
+     ;; 10 >= 5 → taken
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-bge RV-A1 RV-A2 12))
+         (emit! buf (riscv64-li RV-A0 99))
+         (emit! buf (riscv64-ret))
+         (emit! buf (riscv64-li RV-A0 42))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 10)
+             (cons UC_RISCV_REG_X12 5)))
+      42))
+
+   (test-case "rv64 - bltu (taken)"
+     (displayln "  rv64 bltu taken...")
+     ;; unsigned: 5 < 10 → taken
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-bltu RV-A1 RV-A2 12))
+         (emit! buf (riscv64-li RV-A0 99))
+         (emit! buf (riscv64-ret))
+         (emit! buf (riscv64-li RV-A0 42))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 5)
+             (cons UC_RISCV_REG_X12 10)))
+      42))
+
+   (test-case "rv64 - bgeu (taken)"
+     (displayln "  rv64 bgeu taken...")
+     ;; unsigned: 10 >= 5 → taken
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-bgeu RV-A1 RV-A2 12))
+         (emit! buf (riscv64-li RV-A0 99))
+         (emit! buf (riscv64-ret))
+         (emit! buf (riscv64-li RV-A0 42))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 10)
+             (cons UC_RISCV_REG_X12 5)))
+      42))
+
+   ;; --- Jump instructions ---
+
+   (test-case "rv64 - jal"
+     (displayln "  rv64 jal...")
+     ;; jal x0, 8 → jump to PC+8 (skip 1 instruction)
+     (check-equal?
+      (run-rv64
+       (lambda (buf)
+         (emit! buf (riscv64-jal RV-ZERO 8))          ; PC+0: jump to PC+8
+         (emit! buf (riscv64-li RV-A0 99))            ; PC+4: skipped
+         (emit! buf (riscv64-li RV-A0 42))            ; PC+8: target
+         (emit! buf (riscv64-ret))))
+      42))
+
+   (test-case "rv64 - jal (saves return address)"
+     (displayln "  rv64 jal link...")
+     ;; jal a1, 8 → a1 = PC+4, jump to PC+8
+     ;; Check that a1 contains the return address (CODE-ADDRESS + 4)
+     (check-equal?
+      (run-rv64
+       (lambda (buf)
+         (emit! buf (riscv64-jal RV-A1 8))            ; PC+0: a1 = PC+4, jump to PC+8
+         (emit! buf (riscv64-li RV-A0 99))            ; PC+4: skipped
+         (emit! buf (riscv64-addi RV-A0 RV-A1 0))    ; PC+8: a0 = a1 = CODE-ADDRESS + 4
+         (emit! buf (riscv64-ret))))
+      (+ #x10000 4)))
+
+   (test-case "rv64 - jalr"
+     (displayln "  rv64 jalr...")
+     ;; Use auipc to get PC, add offset, then jalr
+     (check-equal?
+      (run-rv64
+       (lambda (buf)
+         (emit! buf (riscv64-auipc RV-T0 0))          ; PC+0: t0 = PC
+         (emit! buf (riscv64-addi RV-T0 RV-T0 16))    ; PC+4: t0 = PC+16
+         (emit! buf (riscv64-jalr RV-ZERO RV-T0 0))   ; PC+8: jump to t0 (PC+16)
+         (emit! buf (riscv64-li RV-A0 99))            ; PC+12: skipped
+         (emit! buf (riscv64-li RV-A0 42))            ; PC+16: target
+         (emit! buf (riscv64-ret))))
+      42))
+
+   (test-case "rv64 - j (unconditional jump)"
+     (displayln "  rv64 j...")
+     (check-equal?
+      (run-rv64
+       (lambda (buf)
+         (emit! buf (riscv64-j 8))                     ; PC+0: jump to PC+8
+         (emit! buf (riscv64-li RV-A0 99))            ; PC+4: skipped
+         (emit! buf (riscv64-li RV-A0 42))            ; PC+8: target
+         (emit! buf (riscv64-ret))))
+      42))
+
+   (test-case "rv64 - jr"
+     (displayln "  rv64 jr...")
+     (check-equal?
+      (run-rv64
+       (lambda (buf)
+         (emit! buf (riscv64-auipc RV-T0 0))          ; PC+0: t0 = PC
+         (emit! buf (riscv64-addi RV-T0 RV-T0 16))    ; PC+4: t0 = PC+16
+         (emit! buf (riscv64-jr RV-T0))                ; PC+8: jump to t0
+         (emit! buf (riscv64-li RV-A0 99))            ; PC+12: skipped
+         (emit! buf (riscv64-li RV-A0 42))            ; PC+16: target
+         (emit! buf (riscv64-ret))))
+      42))
+
+   ;; --- RV64M Multiply/Divide ---
+
+   (test-case "rv64 - mul"
+     (displayln "  rv64 mul...")
+     ;; 6 * 7 = 42
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-mul RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 6)
+             (cons UC_RISCV_REG_X12 7)))
+      42))
+
+   (test-case "rv64 - mulh (upper 64 bits, small values)"
+     (displayln "  rv64 mulh...")
+     ;; Small values: upper 64 bits = 0
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-mulh RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 6)
+             (cons UC_RISCV_REG_X12 7)))
+      0))
+
+   (test-case "rv64 - mulh (upper 64 bits, large values)"
+     (displayln "  rv64 mulh large...")
+     ;; 2^32 * 2^32 = 2^64, upper 64 bits = 1
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-mulh RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 (expt 2 32))
+             (cons UC_RISCV_REG_X12 (expt 2 32))))
+      1))
+
+   (test-case "rv64 - mulhu"
+     (displayln "  rv64 mulhu...")
+     ;; 2^32 * 2^32 = 2^64, upper 64 bits = 1 (unsigned)
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-mulhu RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 (expt 2 32))
+             (cons UC_RISCV_REG_X12 (expt 2 32))))
+      1))
+
+   (test-case "rv64 - mulhsu"
+     (displayln "  rv64 mulhsu...")
+     ;; signed * unsigned with small positive values → 0
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-mulhsu RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 6)
+             (cons UC_RISCV_REG_X12 7)))
+      0))
+
+   (test-case "rv64 - div"
+     (displayln "  rv64 div...")
+     ;; 84 / 2 = 42
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-div RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 84)
+             (cons UC_RISCV_REG_X12 2)))
+      42))
+
+   (test-case "rv64 - divu"
+     (displayln "  rv64 divu...")
+     ;; unsigned: 84 / 2 = 42
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-divu RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 84)
+             (cons UC_RISCV_REG_X12 2)))
+      42))
+
+   (test-case "rv64 - rem"
+     (displayln "  rv64 rem...")
+     ;; 47 % 5 = 2
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-rem RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 47)
+             (cons UC_RISCV_REG_X12 5)))
+      2))
+
+   (test-case "rv64 - remu"
+     (displayln "  rv64 remu...")
+     ;; unsigned: 47 % 5 = 2
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-remu RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 47)
+             (cons UC_RISCV_REG_X12 5)))
+      2))
+
+   ;; --- RV64M Word variants ---
+
+   (test-case "rv64 - mulw"
+     (displayln "  rv64 mulw...")
+     ;; 6 * 7 = 42 (32-bit)
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-mulw RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 6)
+             (cons UC_RISCV_REG_X12 7)))
+      42))
+
+   (test-case "rv64 - divw"
+     (displayln "  rv64 divw...")
+     ;; 84 / 2 = 42 (32-bit signed)
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-divw RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 84)
+             (cons UC_RISCV_REG_X12 2)))
+      42))
+
+   (test-case "rv64 - divuw"
+     (displayln "  rv64 divuw...")
+     ;; 84 / 2 = 42 (32-bit unsigned)
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-divuw RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 84)
+             (cons UC_RISCV_REG_X12 2)))
+      42))
+
+   (test-case "rv64 - remw"
+     (displayln "  rv64 remw...")
+     ;; 47 % 5 = 2 (32-bit signed)
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-remw RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 47)
+             (cons UC_RISCV_REG_X12 5)))
+      2))
+
+   (test-case "rv64 - remuw"
+     (displayln "  rv64 remuw...")
+     ;; 47 % 5 = 2 (32-bit unsigned)
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-remuw RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 47)
+             (cons UC_RISCV_REG_X12 5)))
+      2))
+
+   ;; --- Pseudo-instructions ---
+
+   (test-case "rv64 - nop"
+     (displayln "  rv64 nop...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-li RV-A0 42))
+         (emit! buf (riscv64-nop))
+         (emit! buf (riscv64-nop))
+         (emit! buf (riscv64-ret)))
+       '())
+      42))
+
+   (test-case "rv64 - mv"
+     (displayln "  rv64 mv...")
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-mv RV-A0 RV-A1))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 42)))
+      42))
+
+   (test-case "rv64 - not"
+     (displayln "  rv64 not...")
+     ;; not 0 = 0xFFFFFFFFFFFFFFFF
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-not RV-A0 RV-A1))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 0)))
+      (sub1 (expt 2 64))))
+
+   (test-case "rv64 - neg"
+     (displayln "  rv64 neg...")
+     ;; neg(-42) = 42
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-neg RV-A0 RV-A1))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 (- (expt 2 64) 42))))
+      42))
+
+   (test-case "rv64 - li"
+     (displayln "  rv64 li...")
+     (check-equal?
+      (run-rv64
+       (lambda (buf)
+         (emit! buf (riscv64-li RV-A0 42))
+         (emit! buf (riscv64-ret))))
+      42))
+
+   (test-case "rv64 - li negative"
+     (displayln "  rv64 li negative...")
+     ;; li a0, -1 → a0 = 0xFFFFFFFFFFFFFFFF
+     (check-equal?
+      (run-rv64
+       (lambda (buf)
+         (emit! buf (riscv64-li RV-A0 -1))
+         (emit! buf (riscv64-ret))))
+      (sub1 (expt 2 64))))
+
+   ;; --- Combined tests ---
+
+   (test-case "rv64 - sum 1 to 10"
+     (displayln "  rv64 sum loop...")
+     ;; a0 = 0 (sum), a1 = 10 (counter)
+     ;; loop: a0 += a1; a1 -= 1; if a1 > 0, goto loop
+     (check-equal?
+      (run-rv64
+       (lambda (buf)
+         (emit! buf (riscv64-li RV-A0 0))             ; sum = 0
+         (emit! buf (riscv64-li RV-A1 10))            ; counter = 10
+         ;; loop (PC+8):
+         (emit! buf (riscv64-add RV-A0 RV-A0 RV-A1)) ; sum += counter
+         (emit! buf (riscv64-addi RV-A1 RV-A1 -1))   ; counter -= 1
+         (emit! buf (riscv64-blt RV-ZERO RV-A1 -8))   ; if 0 < counter, jump back 8 bytes
+         (emit! buf (riscv64-ret))))
+      55))
+
+   (test-case "rv64 - factorial 5"
+     (displayln "  rv64 factorial...")
+     ;; a0 = input (5), a1 = result (1)
+     ;; loop: if a0 <= 1, done; result *= a0; a0 -= 1; goto loop
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-li RV-A1 1))             ; result = 1
+         (emit! buf (riscv64-li RV-T0 1))             ; const 1
+         ;; loop (PC+8):
+         (emit! buf (riscv64-bge RV-T0 RV-A0 16))    ; if 1 >= a0, jump to done (PC+8+16=PC+24)
+         (emit! buf (riscv64-mul RV-A1 RV-A1 RV-A0))  ; result *= a0
+         (emit! buf (riscv64-addi RV-A0 RV-A0 -1))   ; a0 -= 1
+         (emit! buf (riscv64-j -12))                   ; jump back to loop (PC+20 -> PC+8 = -12)
+         ;; done (PC+24):
+         (emit! buf (riscv64-mv RV-A0 RV-A1))         ; return result
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X10 5)))
+      120))
    ))
 
 (displayln "Running tests...")

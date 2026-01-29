@@ -54,14 +54,14 @@
 (define UC_ARCH_ARM 1)
 (define UC_ARCH_ARM64 2)
 (define UC_ARCH_X86 4)
-(define UC_ARCH_RISCV 9)
+(define UC_ARCH_RISCV 8)
 
 ;; Mode types
 (define UC_MODE_ARM 0)
 (define UC_MODE_LITTLE_ENDIAN 0)
 (define UC_MODE_64 8)  ; 64-bit mode for x86
-(define UC_MODE_RISCV32 16)  ; 32-bit RISC-V
-(define UC_MODE_RISCV64 32)  ; 64-bit RISC-V
+(define UC_MODE_RISCV32 4)   ; 32-bit RISC-V
+(define UC_MODE_RISCV64 8)   ; 64-bit RISC-V
 
 ;; Error codes
 (define UC_ERR_OK 0)
