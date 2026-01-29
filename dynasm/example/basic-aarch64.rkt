@@ -4,7 +4,7 @@
 ;;; Run from the dynasm directory: racket examples.rkt
 
 (require ffi/unsafe
-         "dynasm.rkt")
+         "../dynasm.rkt")
 
 (displayln "=== Dynasm + Racket FFI Examples ===\n")
 
