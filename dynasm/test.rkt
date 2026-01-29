@@ -76,17 +76,22 @@
 
 (define (run-uc-x64-with-regs code-bytes init-regs)
   (define CODE-ADDRESS #x1000000)
+  (define STOP-ADDRESS (+ CODE-ADDRESS #x100000))
+  (define STACK-TOP (+ CODE-ADDRESS #x200000))
   (define uc (uc-create-x64))
-  ;; Map 2MB memory for emulation (similar to C example)
+  ;; Map 2MB memory for emulation
   (uc-map-memory uc CODE-ADDRESS (* 2 1024 1024))
   (uc-write-code uc CODE-ADDRESS code-bytes)
-  ;; Set up stack pointer (RIP is set by uc-emulate start address)
-  (uc-reg-write-u64 uc UC_X86_REG_RSP (+ CODE-ADDRESS #x200000))
+  ;; Push return address onto stack so ret jumps to STOP-ADDRESS
+  (define ret-addr-bytes (make-bytes 8))
+  (integer->integer-bytes STOP-ADDRESS 8 #f #f ret-addr-bytes)
+  (define rsp (- STACK-TOP 8))
+  (uc-write-code uc rsp ret-addr-bytes)
+  (uc-reg-write-u64 uc UC_X86_REG_RSP rsp)
   ;; Initialize registers
   (for ([reg-pair init-regs])
     (uc-reg-write-u64 uc (car reg-pair) (cdr reg-pair)))
-  (uc-emu-start uc CODE-ADDRESS (sub1 (+ CODE-ADDRESS (bytes-length code-bytes))) 0 0)
-  ;; Read all GP registers
+  (uc-emu-start uc CODE-ADDRESS STOP-ADDRESS 0 0)
   (define result (uc-reg-read-u64 uc UC_X86_REG_RAX))
   (uc-close uc)
   result)
@@ -506,7 +511,6 @@
 
    (test-case "x64 - simple add using dynasm"
      (displayln "  x64 dynasm add...")
-     ;; Use dynasm to generate the code
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-add-reg RAX RBX))
      (emit-x64! buf (x64-ret))
@@ -516,8 +520,511 @@
                              (list (cons UC_X86_REG_RAX 10)
                                    (cons UC_X86_REG_RBX 22))))
      (dynasm-free buf)
-     ;; RAX should contain 10 + 22 = 32
      (check-equal? result 32))
+
+   (test-case "x64 - mov_imm32"
+     (displayln "  x64 mov_imm32...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-mov-imm32 RAX 42))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result (run-uc-x64-with-regs code-bytes '()))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - mov_imm64"
+     (displayln "  x64 mov_imm64...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-mov-imm64 RAX #xDEADBEEFCAFEBABE))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result (run-uc-x64-with-regs code-bytes '()))
+     (dynasm-free buf)
+     (check-equal? result #xDEADBEEFCAFEBABE))
+
+   (test-case "x64 - mov_reg"
+     (displayln "  x64 mov_reg...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-mov-reg RAX RBX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RBX 42))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - sub_reg"
+     (displayln "  x64 sub_reg...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-sub-reg RAX RBX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 100)
+                                   (cons UC_X86_REG_RBX 58))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - add_imm32"
+     (displayln "  x64 add_imm32...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-add-imm32 RAX 32))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 10))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - add_imm8"
+     (displayln "  x64 add_imm8...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-add-imm8 RAX 7))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 35))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - sub_imm32"
+     (displayln "  x64 sub_imm32...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-sub-imm32 RAX 58))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 100))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - sub_imm8"
+     (displayln "  x64 sub_imm8...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-sub-imm8 RAX 8))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 50))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - imul_reg"
+     (displayln "  x64 imul_reg...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-imul-reg RAX RBX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 6)
+                                   (cons UC_X86_REG_RBX 7))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - imul_imm32"
+     (displayln "  x64 imul_imm32...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-imul-imm32 RAX RBX 7))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RBX 6))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - idiv_reg"
+     (displayln "  x64 idiv_reg...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-cqo))
+     (emit-x64! buf (x64-idiv-reg RBX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 84)
+                                   (cons UC_X86_REG_RDX 0)
+                                   (cons UC_X86_REG_RBX 2))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - inc"
+     (displayln "  x64 inc...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-inc RAX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 41))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - dec"
+     (displayln "  x64 dec...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-dec RAX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 43))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - neg"
+     (displayln "  x64 neg...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-neg RAX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     ;; neg of -42 (two's complement) = 42
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX (- (expt 2 64) 42)))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - and_reg"
+     (displayln "  x64 and_reg...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-and-reg RAX RBX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX #xFF)
+                                   (cons UC_X86_REG_RBX #x2A))))
+     (dynasm-free buf)
+     (check-equal? result #x2A))
+
+   (test-case "x64 - and_imm32"
+     (displayln "  x64 and_imm32...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-and-imm32 RAX #xFF))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX #x12A))))
+     (dynasm-free buf)
+     (check-equal? result #x2A))
+
+   (test-case "x64 - or_reg"
+     (displayln "  x64 or_reg...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-or-reg RAX RBX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX #x20)
+                                   (cons UC_X86_REG_RBX #x0A))))
+     (dynasm-free buf)
+     (check-equal? result #x2A))
+
+   (test-case "x64 - xor_reg"
+     (displayln "  x64 xor_reg...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-mov-imm32 RAX 999))
+     (emit-x64! buf (x64-xor-reg RAX RAX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result (run-uc-x64-with-regs code-bytes '()))
+     (dynasm-free buf)
+     (check-equal? result 0))
+
+   (test-case "x64 - shl_imm"
+     (displayln "  x64 shl_imm...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-shl-imm RAX 1))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 21))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - shr_imm"
+     (displayln "  x64 shr_imm...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-shr-imm RAX 1))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 84))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - sar_imm"
+     (displayln "  x64 sar_imm...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-sar-imm RAX 2))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 168))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - shl_cl"
+     (displayln "  x64 shl_cl...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-shl-cl RAX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 21)
+                                   (cons UC_X86_REG_RCX 1))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - shr_cl"
+     (displayln "  x64 shr_cl...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-shr-cl RAX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 84)
+                                   (cons UC_X86_REG_RCX 1))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - sar_cl"
+     (displayln "  x64 sar_cl...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-sar-cl RAX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 168)
+                                   (cons UC_X86_REG_RCX 2))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - cmp_reg + jcc_rel8 (equal)"
+     (displayln "  x64 cmp_reg + jcc_rel8 equal...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-cmp-reg RAX RBX))
+     (emit-x64! buf (x64-jcc-rel8 CC-E 8))       ; if equal, skip next mov+ret (7+1 bytes)
+     (emit-x64! buf (x64-mov-imm32 RAX 99))       ; not equal path
+     (emit-x64! buf (x64-ret))
+     (emit-x64! buf (x64-mov-imm32 RAX 42))       ; equal path
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 10)
+                                   (cons UC_X86_REG_RBX 10))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - cmp_reg + jcc_rel8 (not equal)"
+     (displayln "  x64 cmp_reg + jcc_rel8 not equal...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-cmp-reg RAX RBX))
+     (emit-x64! buf (x64-jcc-rel8 CC-NE 8))       ; if not equal, skip next mov+ret (7+1 bytes)
+     (emit-x64! buf (x64-mov-imm32 RAX 99))        ; equal path
+     (emit-x64! buf (x64-ret))
+     (emit-x64! buf (x64-mov-imm32 RAX 42))        ; not equal path
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 10)
+                                   (cons UC_X86_REG_RBX 20))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - cmp_imm32 + jcc_rel8 (less)"
+     (displayln "  x64 cmp_imm32 + jcc_rel8 less...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-cmp-imm32 RAX 100))
+     (emit-x64! buf (x64-jcc-rel8 CC-L 8))         ; if RAX < 100, jump over mov+ret (7+1 bytes)
+     (emit-x64! buf (x64-mov-imm32 RAX 99))         ; not less path
+     (emit-x64! buf (x64-ret))
+     (emit-x64! buf (x64-mov-imm32 RAX 42))         ; less path
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 50))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - cmp_imm8"
+     (displayln "  x64 cmp_imm8...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-cmp-imm8 RAX 50))
+     (emit-x64! buf (x64-jcc-rel8 CC-GE 8))        ; if RAX >= 50, jump over mov+ret (7+1 bytes)
+     (emit-x64! buf (x64-mov-imm32 RAX 99))
+     (emit-x64! buf (x64-ret))
+     (emit-x64! buf (x64-mov-imm32 RAX 42))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 100))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - test_reg + jcc (zero check)"
+     (displayln "  x64 test_reg...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-test-reg RAX RAX))
+     (emit-x64! buf (x64-jcc-rel8 CC-Z 8))          ; if zero, jump over mov+ret (7+1 bytes)
+     (emit-x64! buf (x64-mov-imm32 RAX 99))          ; non-zero path
+     (emit-x64! buf (x64-ret))
+     (emit-x64! buf (x64-mov-imm32 RAX 42))          ; zero path
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 0))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - jmp_rel8"
+     (displayln "  x64 jmp_rel8...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-jmp-rel8 7))               ; skip next mov (7 bytes)
+     (emit-x64! buf (x64-mov-imm32 RAX 99))
+     (emit-x64! buf (x64-mov-imm32 RAX 42))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result (run-uc-x64-with-regs code-bytes '()))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - jmp_rel32"
+     (displayln "  x64 jmp_rel32...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-jmp-rel32 7))              ; skip next mov (7 bytes)
+     (emit-x64! buf (x64-mov-imm32 RAX 99))
+     (emit-x64! buf (x64-mov-imm32 RAX 42))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result (run-uc-x64-with-regs code-bytes '()))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - jcc_rel32 (CC-G)"
+     (displayln "  x64 jcc_rel32...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-cmp-reg RAX RBX))
+     (emit-x64! buf (x64-jcc-rel32 CC-G 8))         ; if RAX > RBX, jump over next mov+ret
+     (emit-x64! buf (x64-mov-imm32 RAX 99))
+     (emit-x64! buf (x64-ret))
+     (emit-x64! buf (x64-mov-imm32 RAX 42))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 50)
+                                   (cons UC_X86_REG_RBX 20))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - push and pop"
+     (displayln "  x64 push/pop...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-push RAX))
+     (emit-x64! buf (x64-mov-imm32 RAX 0))
+     (emit-x64! buf (x64-pop RAX))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 42))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - nop"
+     (displayln "  x64 nop...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-mov-imm32 RAX 42))
+     (emit-x64! buf (x64-nop))
+     (emit-x64! buf (x64-nop))
+     (emit-x64! buf (x64-nop))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result (run-uc-x64-with-regs code-bytes '()))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - mov_mr and mov_rm (memory store/load)"
+     (displayln "  x64 mov_mr/mov_rm...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-sub-imm8 RSP 8))
+     (emit-x64! buf (x64-mov-mr RSP RAX))
+     (emit-x64! buf (x64-mov-imm32 RAX 0))
+     (emit-x64! buf (x64-mov-rm RAX RSP))
+     (emit-x64! buf (x64-add-imm8 RSP 8))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 42))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - mov_mr_disp32 and mov_rm_disp32"
+     (displayln "  x64 mov_mr_disp32/mov_rm_disp32...")
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-sub-imm8 RSP 16))
+     (emit-x64! buf (x64-mov-mr-disp32 RSP 8 RAX))   ; store at [RSP+8]
+     (emit-x64! buf (x64-mov-imm32 RAX 0))
+     (emit-x64! buf (x64-mov-rm-disp32 RAX RSP 8))    ; load from [RSP+8]
+     (emit-x64! buf (x64-add-imm8 RSP 16))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 42))))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - combined arithmetic (add + sub + imul)"
+     (displayln "  x64 combined arith...")
+     ;; (5 + 3) * 7 - 14 = 42
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-mov-imm32 RAX 5))
+     (emit-x64! buf (x64-add-imm8 RAX 3))
+     (emit-x64! buf (x64-imul-imm32 RAX RAX 7))
+     (emit-x64! buf (x64-sub-imm8 RAX 14))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result (run-uc-x64-with-regs code-bytes '()))
+     (dynasm-free buf)
+     (check-equal? result 42))
+
+   (test-case "x64 - R8-R15 registers"
+     (displayln "  x64 extended regs...")
+     ;; Test that extended registers work: move through R8
+     (define buf (dynasm-create 4096))
+     (emit-x64! buf (x64-mov-reg R8 RAX))
+     (emit-x64! buf (x64-mov-reg RAX R8))
+     (emit-x64! buf (x64-ret))
+     (define code-bytes (get-code-bytes buf))
+     (define result
+       (run-uc-x64-with-regs code-bytes
+                             (list (cons UC_X86_REG_RAX 42))))
+     (dynasm-free buf)
+     (check-equal? result 42))
    ))
 
 (displayln "Running tests...")
