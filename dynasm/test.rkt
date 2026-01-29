@@ -6,8 +6,6 @@
          "dynasm.rkt"
          "unicorn.rkt")
 
-(displayln "Starting test...")
-
 (define CODE-ADDRESS #x10000)
 (define RETURN-ADDRESS #x20000)
 (define STACK-ADDRESS #x30000)
@@ -143,7 +141,6 @@
    "Tests"
 
    (test-case "aarch64 - movz basic"
-     (displayln "  aarch64 movz basic...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -152,7 +149,6 @@
       42))
 
    (test-case "aarch64 - movz zero value"
-     (displayln "  aarch64 movz zero...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -161,7 +157,6 @@
       0))
 
    (test-case "aarch64 - movz max 16-bit"
-     (displayln "  aarch64 movz max...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -170,7 +165,6 @@
       #xFFFF))
 
    (test-case "aarch64 - movz shift 16"
-     (displayln "  aarch64 movz shift 16...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -179,7 +173,6 @@
       #x10000))
 
    (test-case "aarch64 - movz shift 32"
-     (displayln "  aarch64 movz shift 32...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -188,7 +181,6 @@
       #x100000000))
 
    (test-case "aarch64 - movz shift 48"
-     (displayln "  aarch64 movz shift 48...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -197,7 +189,6 @@
       #x1000000000000))
 
    (test-case "aarch64 - movk build 32-bit"
-     (displayln "  aarch64 movk 32-bit...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -207,7 +198,6 @@
       #x12345678))
 
    (test-case "aarch64 - movk build 64-bit"
-     (displayln "  aarch64 movk 64-bit...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -219,7 +209,6 @@
       #xDEADBEEFCAFEBABE))
 
    (test-case "aarch64 - add_imm"
-     (displayln "  aarch64 add_imm...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -229,7 +218,6 @@
       42))
 
    (test-case "aarch64 - sub_imm"
-     (displayln "  aarch64 sub_imm...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -239,7 +227,6 @@
       42))
 
    (test-case "aarch64 - add_reg"
-     (displayln "  aarch64 add_reg...")
      (check-equal?
       (run-uc-2arg
        (lambda (buf)
@@ -249,7 +236,6 @@
       42))
 
    (test-case "aarch64 - sub_reg"
-     (displayln "  aarch64 sub_reg...")
      (check-equal?
       (run-uc-2arg
        (lambda (buf)
@@ -259,7 +245,6 @@
       42))
 
    (test-case "aarch64 - mul"
-     (displayln "  aarch64 mul...")
      (check-equal?
       (run-uc-2arg
        (lambda (buf)
@@ -269,7 +254,6 @@
       42))
 
    (test-case "aarch64 - sdiv"
-     (displayln "  aarch64 sdiv...")
      (check-equal?
       (run-uc-2arg
        (lambda (buf)
@@ -279,7 +263,6 @@
       7))
 
    (test-case "aarch64 - sum 1 to 10"
-     (displayln "  aarch64 sum loop...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -293,7 +276,6 @@
       55))
 
    (test-case "aarch64 - factorial 5"
-     (displayln "  aarch64 factorial...")
      (check-equal?
       (run-uc-1arg
        (lambda (buf)
@@ -309,7 +291,6 @@
       120))
 
    (test-case "aarch64 - msub"
-     (displayln "  aarch64 msub...")
      ;; msub X0, X1, X2, X3 = X3 - (X1 * X2)
      ;; X1=3, X2=4, X3=20 -> 20 - 12 = 8
      (check-equal?
@@ -323,7 +304,6 @@
       8))
 
    (test-case "aarch64 - lsr_imm"
-     (displayln "  aarch64 lsr_imm...")
      ;; 64 >> 2 = 16
      (check-equal?
       (run-uc-void
@@ -334,7 +314,6 @@
       16))
 
    (test-case "aarch64 - lsr_reg"
-     (displayln "  aarch64 lsr_reg...")
      ;; 64 >> 3 = 8
      (check-equal?
       (run-uc-2arg
@@ -345,7 +324,6 @@
       8))
 
    (test-case "aarch64 - lsl_imm"
-     (displayln "  aarch64 lsl_imm...")
      ;; 5 << 3 = 40
      (check-equal?
       (run-uc-void
@@ -356,7 +334,6 @@
       40))
 
    (test-case "aarch64 - lsl_reg"
-     (displayln "  aarch64 lsl_reg...")
      ;; 7 << 2 = 28
      (check-equal?
       (run-uc-2arg
@@ -367,7 +344,6 @@
       28))
 
    (test-case "aarch64 - and_imm"
-     (displayln "  aarch64 and_imm...")
      ;; 0xFF & 0x1 = 0x1 (only imm=1 is currently supported)
      (check-equal?
       (run-uc-void
@@ -378,7 +354,6 @@
       1))
 
    (test-case "aarch64 - clz"
-     (displayln "  aarch64 clz...")
      ;; 0xFF has 56 leading zeros (64-bit register)
      (check-equal?
       (run-uc-void
@@ -389,7 +364,6 @@
       56))
 
    (test-case "aarch64 - cmp_reg"
-     (displayln "  aarch64 cmp_reg...")
      ;; Compare X0 and X1, branch if not equal
      (check-equal?
       (run-uc-2arg
@@ -404,7 +378,6 @@
       42))
 
    (test-case "aarch64 - csel"
-     (displayln "  aarch64 csel...")
      ;; if X2 > 0 then X0 = X0 else X0 = X1
      (check-equal?
       (run-uc-void
@@ -418,7 +391,6 @@
       42))
 
    (test-case "aarch64 - csneg"
-     (displayln "  aarch64 csneg...")
      ;; if X2 <= 0 then X0 = -X1 else X0 = X0
      (check-equal?
       (run-uc-void
@@ -433,7 +405,6 @@
       (- (expt 2 64) 10)))
 
    (test-case "aarch64 - nop"
-     (displayln "  aarch64 nop...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -444,7 +415,6 @@
       42))
 
    (test-case "aarch64 - tst_imm"
-     (displayln "  aarch64 tst_imm...")
      ;; TST sets flags without writing to a register
      ;; Test if bit 0 is set: 0xFE & 1 = 0, so Z flag is set, NE condition is false
      ;; If bit not set (Z=1), return 42, else return 99
@@ -461,7 +431,6 @@
       42))
 
    (test-case "aarch64 - rbit"
-     (displayln "  aarch64 rbit...")
      ;; Reverse bits of 0x1 (0x8000000000000000)
      (check-equal?
       (run-uc-void
@@ -472,7 +441,6 @@
       #x8000000000000000))
 
    (test-case "aarch64 - ldr/str_imm"
-     (displayln "  aarch64 ldr/str_imm...")
      ;; Store 42 to [SP+16], then load it back (offset is in units of 8 bytes)
      (check-equal?
       (run-uc-void
@@ -485,7 +453,6 @@
       42))
 
    (test-case "aarch64 - str/ldr pair"
-     (displayln "  aarch64 str/ldr pair...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -502,7 +469,6 @@
       30))
 
    (test-case "aarch64 - fmov"
-     (displayln "  aarch64 fmov...")
      ;; Simple test: move data from GP to SIMD and back
      (check-equal?
       (run-uc-void
@@ -515,7 +481,6 @@
       42))
 
    (test-case "aarch64 - dup/umov"
-     (displayln "  aarch64 dup/umov...")
      ;; DUP a GP register to all SIMD lanes, then extract one lane
      (check-equal?
       (run-uc-void
@@ -527,7 +492,6 @@
       42))
 
    (test-case "aarch64 - add_simd"
-     (displayln "  aarch64 add_simd...")
      ;; Add two vectors and extract result
      (check-equal?
       (run-uc-void
@@ -542,7 +506,6 @@
       42))
 
    (test-case "x64 - register read/write test"
-     (displayln "  x64 reg r/w...")
      ;; Test that we can set and read registers correctly (no code execution)
      (define uc (uc-create-x64))
      (uc-map-memory uc CODE-ADDRESS #x1000)
@@ -552,7 +515,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - simple add using dynasm"
-     (displayln "  x64 dynasm add...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-add-reg RAX RBX))
      (emit-x64! buf (x64-ret))
@@ -565,7 +527,6 @@
      (check-equal? result 32))
 
    (test-case "x64 - mov_imm32"
-     (displayln "  x64 mov_imm32...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-mov-imm32 RAX 42))
      (emit-x64! buf (x64-ret))
@@ -575,7 +536,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - mov_imm64"
-     (displayln "  x64 mov_imm64...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-mov-imm64 RAX #xDEADBEEFCAFEBABE))
      (emit-x64! buf (x64-ret))
@@ -585,7 +545,6 @@
      (check-equal? result #xDEADBEEFCAFEBABE))
 
    (test-case "x64 - mov_reg"
-     (displayln "  x64 mov_reg...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-mov-reg RAX RBX))
      (emit-x64! buf (x64-ret))
@@ -597,7 +556,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - sub_reg"
-     (displayln "  x64 sub_reg...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-sub-reg RAX RBX))
      (emit-x64! buf (x64-ret))
@@ -610,7 +568,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - add_imm32"
-     (displayln "  x64 add_imm32...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-add-imm32 RAX 32))
      (emit-x64! buf (x64-ret))
@@ -622,7 +579,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - add_imm8"
-     (displayln "  x64 add_imm8...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-add-imm8 RAX 7))
      (emit-x64! buf (x64-ret))
@@ -634,7 +590,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - sub_imm32"
-     (displayln "  x64 sub_imm32...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-sub-imm32 RAX 58))
      (emit-x64! buf (x64-ret))
@@ -646,7 +601,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - sub_imm8"
-     (displayln "  x64 sub_imm8...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-sub-imm8 RAX 8))
      (emit-x64! buf (x64-ret))
@@ -658,7 +612,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - imul_reg"
-     (displayln "  x64 imul_reg...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-imul-reg RAX RBX))
      (emit-x64! buf (x64-ret))
@@ -671,7 +624,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - imul_imm32"
-     (displayln "  x64 imul_imm32...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-imul-imm32 RAX RBX 7))
      (emit-x64! buf (x64-ret))
@@ -683,7 +635,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - idiv_reg"
-     (displayln "  x64 idiv_reg...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-cqo))
      (emit-x64! buf (x64-idiv-reg RBX))
@@ -698,7 +649,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - inc"
-     (displayln "  x64 inc...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-inc RAX))
      (emit-x64! buf (x64-ret))
@@ -710,7 +660,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - dec"
-     (displayln "  x64 dec...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-dec RAX))
      (emit-x64! buf (x64-ret))
@@ -722,7 +671,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - neg"
-     (displayln "  x64 neg...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-neg RAX))
      (emit-x64! buf (x64-ret))
@@ -735,7 +683,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - and_reg"
-     (displayln "  x64 and_reg...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-and-reg RAX RBX))
      (emit-x64! buf (x64-ret))
@@ -748,7 +695,6 @@
      (check-equal? result #x2A))
 
    (test-case "x64 - and_imm32"
-     (displayln "  x64 and_imm32...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-and-imm32 RAX #xFF))
      (emit-x64! buf (x64-ret))
@@ -760,7 +706,6 @@
      (check-equal? result #x2A))
 
    (test-case "x64 - or_reg"
-     (displayln "  x64 or_reg...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-or-reg RAX RBX))
      (emit-x64! buf (x64-ret))
@@ -773,7 +718,6 @@
      (check-equal? result #x2A))
 
    (test-case "x64 - xor_reg"
-     (displayln "  x64 xor_reg...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-mov-imm32 RAX 999))
      (emit-x64! buf (x64-xor-reg RAX RAX))
@@ -784,7 +728,6 @@
      (check-equal? result 0))
 
    (test-case "x64 - shl_imm"
-     (displayln "  x64 shl_imm...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-shl-imm RAX 1))
      (emit-x64! buf (x64-ret))
@@ -796,7 +739,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - shr_imm"
-     (displayln "  x64 shr_imm...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-shr-imm RAX 1))
      (emit-x64! buf (x64-ret))
@@ -808,7 +750,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - sar_imm"
-     (displayln "  x64 sar_imm...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-sar-imm RAX 2))
      (emit-x64! buf (x64-ret))
@@ -820,7 +761,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - shl_cl"
-     (displayln "  x64 shl_cl...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-shl-cl RAX))
      (emit-x64! buf (x64-ret))
@@ -833,7 +773,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - shr_cl"
-     (displayln "  x64 shr_cl...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-shr-cl RAX))
      (emit-x64! buf (x64-ret))
@@ -846,7 +785,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - sar_cl"
-     (displayln "  x64 sar_cl...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-sar-cl RAX))
      (emit-x64! buf (x64-ret))
@@ -859,7 +797,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - cmp_reg + jcc_rel8 (equal)"
-     (displayln "  x64 cmp_reg + jcc_rel8 equal...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-cmp-reg RAX RBX))
      (emit-x64! buf (x64-jcc-rel8 CC-E 8))       ; if equal, skip next mov+ret (7+1 bytes)
@@ -876,7 +813,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - cmp_reg + jcc_rel8 (not equal)"
-     (displayln "  x64 cmp_reg + jcc_rel8 not equal...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-cmp-reg RAX RBX))
      (emit-x64! buf (x64-jcc-rel8 CC-NE 8))       ; if not equal, skip next mov+ret (7+1 bytes)
@@ -893,7 +829,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - cmp_imm32 + jcc_rel8 (less)"
-     (displayln "  x64 cmp_imm32 + jcc_rel8 less...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-cmp-imm32 RAX 100))
      (emit-x64! buf (x64-jcc-rel8 CC-L 8))         ; if RAX < 100, jump over mov+ret (7+1 bytes)
@@ -909,7 +844,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - cmp_imm8"
-     (displayln "  x64 cmp_imm8...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-cmp-imm8 RAX 50))
      (emit-x64! buf (x64-jcc-rel8 CC-GE 8))        ; if RAX >= 50, jump over mov+ret (7+1 bytes)
@@ -925,7 +859,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - test_reg + jcc (zero check)"
-     (displayln "  x64 test_reg...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-test-reg RAX RAX))
      (emit-x64! buf (x64-jcc-rel8 CC-Z 8))          ; if zero, jump over mov+ret (7+1 bytes)
@@ -941,7 +874,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - jmp_rel8"
-     (displayln "  x64 jmp_rel8...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-jmp-rel8 7))               ; skip next mov (7 bytes)
      (emit-x64! buf (x64-mov-imm32 RAX 99))
@@ -953,7 +885,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - jmp_rel32"
-     (displayln "  x64 jmp_rel32...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-jmp-rel32 7))              ; skip next mov (7 bytes)
      (emit-x64! buf (x64-mov-imm32 RAX 99))
@@ -965,7 +896,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - jcc_rel32 (CC-G)"
-     (displayln "  x64 jcc_rel32...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-cmp-reg RAX RBX))
      (emit-x64! buf (x64-jcc-rel32 CC-G 8))         ; if RAX > RBX, jump over next mov+ret
@@ -982,7 +912,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - push and pop"
-     (displayln "  x64 push/pop...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-push RAX))
      (emit-x64! buf (x64-mov-imm32 RAX 0))
@@ -996,7 +925,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - nop"
-     (displayln "  x64 nop...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-mov-imm32 RAX 42))
      (emit-x64! buf (x64-nop))
@@ -1009,7 +937,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - mov_mr and mov_rm (memory store/load)"
-     (displayln "  x64 mov_mr/mov_rm...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-sub-imm8 RSP 8))
      (emit-x64! buf (x64-mov-mr RSP RAX))
@@ -1025,7 +952,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - mov_mr_disp32 and mov_rm_disp32"
-     (displayln "  x64 mov_mr_disp32/mov_rm_disp32...")
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-sub-imm8 RSP 16))
      (emit-x64! buf (x64-mov-mr-disp32 RSP 8 RAX))   ; store at [RSP+8]
@@ -1041,7 +967,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - combined arithmetic (add + sub + imul)"
-     (displayln "  x64 combined arith...")
      ;; (5 + 3) * 7 - 14 = 42
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-mov-imm32 RAX 5))
@@ -1055,7 +980,6 @@
      (check-equal? result 42))
 
    (test-case "x64 - R8-R15 registers"
-     (displayln "  x64 extended regs...")
      ;; Test that extended registers work: move through R8
      (define buf (dynasm-create 4096))
      (emit-x64! buf (x64-mov-reg R8 RAX))
@@ -1075,7 +999,6 @@
    ;; --- R-type arithmetic ---
 
    (test-case "rv64 - add"
-     (displayln "  rv64 add...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1086,7 +1009,6 @@
       42))
 
    (test-case "rv64 - sub"
-     (displayln "  rv64 sub...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1097,7 +1019,6 @@
       42))
 
    (test-case "rv64 - sll"
-     (displayln "  rv64 sll...")
      ;; 21 << 1 = 42
      (check-equal?
       (run-rv64-with
@@ -1109,7 +1030,6 @@
       42))
 
    (test-case "rv64 - slt (less)"
-     (displayln "  rv64 slt less...")
      ;; 5 < 10 → 1
      (check-equal?
       (run-rv64-with
@@ -1121,7 +1041,6 @@
       1))
 
    (test-case "rv64 - slt (not less)"
-     (displayln "  rv64 slt not less...")
      ;; 10 < 5 → 0
      (check-equal?
       (run-rv64-with
@@ -1133,7 +1052,6 @@
       0))
 
    (test-case "rv64 - sltu"
-     (displayln "  rv64 sltu...")
      ;; unsigned: 5 < 10 → 1
      (check-equal?
       (run-rv64-with
@@ -1145,7 +1063,6 @@
       1))
 
    (test-case "rv64 - xor"
-     (displayln "  rv64 xor...")
      ;; 0xFF ^ 0xD5 = 0x2A = 42
      (check-equal?
       (run-rv64-with
@@ -1157,7 +1074,6 @@
       #x2A))
 
    (test-case "rv64 - srl"
-     (displayln "  rv64 srl...")
      ;; 84 >> 1 = 42
      (check-equal?
       (run-rv64-with
@@ -1169,7 +1085,6 @@
       42))
 
    (test-case "rv64 - sra"
-     (displayln "  rv64 sra...")
      ;; 168 >> 2 = 42 (positive value, same as srl)
      (check-equal?
       (run-rv64-with
@@ -1181,7 +1096,6 @@
       42))
 
    (test-case "rv64 - or"
-     (displayln "  rv64 or...")
      ;; 0x20 | 0x0A = 0x2A = 42
      (check-equal?
       (run-rv64-with
@@ -1193,7 +1107,6 @@
       #x2A))
 
    (test-case "rv64 - and"
-     (displayln "  rv64 and...")
      ;; 0xFF & 0x2A = 0x2A = 42
      (check-equal?
       (run-rv64-with
@@ -1207,7 +1120,6 @@
    ;; --- W-type (32-bit word operations) ---
 
    (test-case "rv64 - addw"
-     (displayln "  rv64 addw...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1218,7 +1130,6 @@
       42))
 
    (test-case "rv64 - subw"
-     (displayln "  rv64 subw...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1229,7 +1140,6 @@
       42))
 
    (test-case "rv64 - sllw"
-     (displayln "  rv64 sllw...")
      ;; 21 << 1 = 42 (32-bit)
      (check-equal?
       (run-rv64-with
@@ -1241,7 +1151,6 @@
       42))
 
    (test-case "rv64 - srlw"
-     (displayln "  rv64 srlw...")
      ;; 84 >> 1 = 42 (32-bit logical)
      (check-equal?
       (run-rv64-with
@@ -1253,7 +1162,6 @@
       42))
 
    (test-case "rv64 - sraw"
-     (displayln "  rv64 sraw...")
      ;; 168 >> 2 = 42 (32-bit arithmetic, positive)
      (check-equal?
       (run-rv64-with
@@ -1267,7 +1175,6 @@
    ;; --- I-type immediate arithmetic ---
 
    (test-case "rv64 - addi"
-     (displayln "  rv64 addi...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1277,7 +1184,6 @@
       42))
 
    (test-case "rv64 - slti (less)"
-     (displayln "  rv64 slti...")
      ;; 5 < 100 → 1
      (check-equal?
       (run-rv64-with
@@ -1288,7 +1194,6 @@
       1))
 
    (test-case "rv64 - sltiu"
-     (displayln "  rv64 sltiu...")
      ;; unsigned: 5 < 100 → 1
      (check-equal?
       (run-rv64-with
@@ -1299,7 +1204,6 @@
       1))
 
    (test-case "rv64 - xori"
-     (displayln "  rv64 xori...")
      ;; 0xFF ^ 0xD5 = 0x2A
      (check-equal?
       (run-rv64-with
@@ -1310,7 +1214,6 @@
       #x2A))
 
    (test-case "rv64 - ori"
-     (displayln "  rv64 ori...")
      ;; 0x20 | 0x0A = 0x2A
      (check-equal?
       (run-rv64-with
@@ -1321,7 +1224,6 @@
       #x2A))
 
    (test-case "rv64 - andi"
-     (displayln "  rv64 andi...")
      ;; 0xFF & 0x2A = 0x2A
      (check-equal?
       (run-rv64-with
@@ -1332,7 +1234,6 @@
       #x2A))
 
    (test-case "rv64 - slli"
-     (displayln "  rv64 slli...")
      ;; 21 << 1 = 42
      (check-equal?
       (run-rv64-with
@@ -1343,7 +1244,6 @@
       42))
 
    (test-case "rv64 - srli"
-     (displayln "  rv64 srli...")
      ;; 84 >> 1 = 42
      (check-equal?
       (run-rv64-with
@@ -1354,7 +1254,6 @@
       42))
 
    (test-case "rv64 - srai"
-     (displayln "  rv64 srai...")
      ;; 168 >> 2 = 42
      (check-equal?
       (run-rv64-with
@@ -1367,7 +1266,6 @@
    ;; --- W immediate variants ---
 
    (test-case "rv64 - addiw"
-     (displayln "  rv64 addiw...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1377,7 +1275,6 @@
       42))
 
    (test-case "rv64 - slliw"
-     (displayln "  rv64 slliw...")
      ;; 21 << 1 = 42 (32-bit)
      (check-equal?
       (run-rv64-with
@@ -1388,7 +1285,6 @@
       42))
 
    (test-case "rv64 - srliw"
-     (displayln "  rv64 srliw...")
      ;; 84 >> 1 = 42 (32-bit logical)
      (check-equal?
       (run-rv64-with
@@ -1399,7 +1295,6 @@
       42))
 
    (test-case "rv64 - sraiw"
-     (displayln "  rv64 sraiw...")
      ;; 168 >> 2 = 42 (32-bit arithmetic)
      (check-equal?
       (run-rv64-with
@@ -1412,7 +1307,6 @@
    ;; --- Load/Store ---
 
    (test-case "rv64 - sd/ld (doubleword)"
-     (displayln "  rv64 sd/ld...")
      ;; Store 42 to [SP+0], load it back
      (check-equal?
       (run-rv64-with
@@ -1424,7 +1318,6 @@
       42))
 
    (test-case "rv64 - sw/lw (word, sign-extended)"
-     (displayln "  rv64 sw/lw...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1435,7 +1328,6 @@
       42))
 
    (test-case "rv64 - sw/lwu (word, zero-extended)"
-     (displayln "  rv64 sw/lwu...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1446,7 +1338,6 @@
       42))
 
    (test-case "rv64 - sh/lh (halfword, sign-extended)"
-     (displayln "  rv64 sh/lh...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1457,7 +1348,6 @@
       42))
 
    (test-case "rv64 - sh/lhu (halfword, zero-extended)"
-     (displayln "  rv64 sh/lhu...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1468,7 +1358,6 @@
       42))
 
    (test-case "rv64 - sb/lb (byte, sign-extended)"
-     (displayln "  rv64 sb/lb...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1479,7 +1368,6 @@
       42))
 
    (test-case "rv64 - sb/lbu (byte, zero-extended)"
-     (displayln "  rv64 sb/lbu...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1490,7 +1378,6 @@
       42))
 
    (test-case "rv64 - sd/ld with offset"
-     (displayln "  rv64 sd/ld offset...")
      ;; Store at [SP+16], load from [SP+16]
      (check-equal?
       (run-rv64-with
@@ -1504,7 +1391,6 @@
    ;; --- Upper immediate ---
 
    (test-case "rv64 - lui"
-     (displayln "  rv64 lui...")
      ;; lui a0, #x1000 → a0 = 4096 (upper bits already in position)
      (check-equal?
       (run-rv64
@@ -1514,7 +1400,6 @@
       4096))
 
    (test-case "rv64 - lui + addi"
-     (displayln "  rv64 lui+addi...")
      ;; lui a0, #x1000; addi a0, a0, 42 → a0 = 4096 + 42 = 4138
      (check-equal?
       (run-rv64
@@ -1525,7 +1410,6 @@
       4138))
 
    (test-case "rv64 - auipc"
-     (displayln "  rv64 auipc...")
      ;; auipc a0, 0 → a0 = PC = CODE-ADDRESS = 0x10000
      (check-equal?
       (run-rv64
@@ -1537,7 +1421,6 @@
    ;; --- Branch instructions ---
 
    (test-case "rv64 - beq (taken)"
-     (displayln "  rv64 beq taken...")
      ;; beq a1, a2, 12 → skip li+ret, land on second li
      (check-equal?
       (run-rv64-with
@@ -1552,7 +1435,6 @@
       42))
 
    (test-case "rv64 - beq (not taken)"
-     (displayln "  rv64 beq not taken...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1566,7 +1448,6 @@
       42))
 
    (test-case "rv64 - bne (taken)"
-     (displayln "  rv64 bne taken...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1580,7 +1461,6 @@
       42))
 
    (test-case "rv64 - blt (taken)"
-     (displayln "  rv64 blt taken...")
      ;; 5 < 10 → taken
      (check-equal?
       (run-rv64-with
@@ -1595,7 +1475,6 @@
       42))
 
    (test-case "rv64 - bge (taken)"
-     (displayln "  rv64 bge taken...")
      ;; 10 >= 5 → taken
      (check-equal?
       (run-rv64-with
@@ -1610,7 +1489,6 @@
       42))
 
    (test-case "rv64 - bltu (taken)"
-     (displayln "  rv64 bltu taken...")
      ;; unsigned: 5 < 10 → taken
      (check-equal?
       (run-rv64-with
@@ -1625,7 +1503,6 @@
       42))
 
    (test-case "rv64 - bgeu (taken)"
-     (displayln "  rv64 bgeu taken...")
      ;; unsigned: 10 >= 5 → taken
      (check-equal?
       (run-rv64-with
@@ -1642,7 +1519,6 @@
    ;; --- Jump instructions ---
 
    (test-case "rv64 - jal"
-     (displayln "  rv64 jal...")
      ;; jal x0, 8 → jump to PC+8 (skip 1 instruction)
      (check-equal?
       (run-rv64
@@ -1654,7 +1530,6 @@
       42))
 
    (test-case "rv64 - jal (saves return address)"
-     (displayln "  rv64 jal link...")
      ;; jal a1, 8 → a1 = PC+4, jump to PC+8
      ;; Check that a1 contains the return address (CODE-ADDRESS + 4)
      (check-equal?
@@ -1667,7 +1542,6 @@
       (+ #x10000 4)))
 
    (test-case "rv64 - jalr"
-     (displayln "  rv64 jalr...")
      ;; Use auipc to get PC, add offset, then jalr
      (check-equal?
       (run-rv64
@@ -1681,7 +1555,6 @@
       42))
 
    (test-case "rv64 - j (unconditional jump)"
-     (displayln "  rv64 j...")
      (check-equal?
       (run-rv64
        (lambda (buf)
@@ -1692,7 +1565,6 @@
       42))
 
    (test-case "rv64 - jr"
-     (displayln "  rv64 jr...")
      (check-equal?
       (run-rv64
        (lambda (buf)
@@ -1707,7 +1579,6 @@
    ;; --- RV64M Multiply/Divide ---
 
    (test-case "rv64 - mul"
-     (displayln "  rv64 mul...")
      ;; 6 * 7 = 42
      (check-equal?
       (run-rv64-with
@@ -1719,7 +1590,6 @@
       42))
 
    (test-case "rv64 - mulh (upper 64 bits, small values)"
-     (displayln "  rv64 mulh...")
      ;; Small values: upper 64 bits = 0
      (check-equal?
       (run-rv64-with
@@ -1731,7 +1601,6 @@
       0))
 
    (test-case "rv64 - mulh (upper 64 bits, large values)"
-     (displayln "  rv64 mulh large...")
      ;; 2^32 * 2^32 = 2^64, upper 64 bits = 1
      (check-equal?
       (run-rv64-with
@@ -1743,7 +1612,6 @@
       1))
 
    (test-case "rv64 - mulhu"
-     (displayln "  rv64 mulhu...")
      ;; 2^32 * 2^32 = 2^64, upper 64 bits = 1 (unsigned)
      (check-equal?
       (run-rv64-with
@@ -1755,7 +1623,6 @@
       1))
 
    (test-case "rv64 - mulhsu"
-     (displayln "  rv64 mulhsu...")
      ;; signed * unsigned with small positive values → 0
      (check-equal?
       (run-rv64-with
@@ -1767,7 +1634,6 @@
       0))
 
    (test-case "rv64 - div"
-     (displayln "  rv64 div...")
      ;; 84 / 2 = 42
      (check-equal?
       (run-rv64-with
@@ -1779,7 +1645,6 @@
       42))
 
    (test-case "rv64 - divu"
-     (displayln "  rv64 divu...")
      ;; unsigned: 84 / 2 = 42
      (check-equal?
       (run-rv64-with
@@ -1791,7 +1656,6 @@
       42))
 
    (test-case "rv64 - rem"
-     (displayln "  rv64 rem...")
      ;; 47 % 5 = 2
      (check-equal?
       (run-rv64-with
@@ -1803,7 +1667,6 @@
       2))
 
    (test-case "rv64 - remu"
-     (displayln "  rv64 remu...")
      ;; unsigned: 47 % 5 = 2
      (check-equal?
       (run-rv64-with
@@ -1817,7 +1680,6 @@
    ;; --- RV64M Word variants ---
 
    (test-case "rv64 - mulw"
-     (displayln "  rv64 mulw...")
      ;; 6 * 7 = 42 (32-bit)
      (check-equal?
       (run-rv64-with
@@ -1829,7 +1691,6 @@
       42))
 
    (test-case "rv64 - divw"
-     (displayln "  rv64 divw...")
      ;; 84 / 2 = 42 (32-bit signed)
      (check-equal?
       (run-rv64-with
@@ -1841,7 +1702,6 @@
       42))
 
    (test-case "rv64 - divuw"
-     (displayln "  rv64 divuw...")
      ;; 84 / 2 = 42 (32-bit unsigned)
      (check-equal?
       (run-rv64-with
@@ -1853,7 +1713,6 @@
       42))
 
    (test-case "rv64 - remw"
-     (displayln "  rv64 remw...")
      ;; 47 % 5 = 2 (32-bit signed)
      (check-equal?
       (run-rv64-with
@@ -1865,7 +1724,6 @@
       2))
 
    (test-case "rv64 - remuw"
-     (displayln "  rv64 remuw...")
      ;; 47 % 5 = 2 (32-bit unsigned)
      (check-equal?
       (run-rv64-with
@@ -1879,7 +1737,6 @@
    ;; --- Pseudo-instructions ---
 
    (test-case "rv64 - nop"
-     (displayln "  rv64 nop...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1891,7 +1748,6 @@
       42))
 
    (test-case "rv64 - mv"
-     (displayln "  rv64 mv...")
      (check-equal?
       (run-rv64-with
        (lambda (buf)
@@ -1901,7 +1757,6 @@
       42))
 
    (test-case "rv64 - not"
-     (displayln "  rv64 not...")
      ;; not 0 = 0xFFFFFFFFFFFFFFFF
      (check-equal?
       (run-rv64-with
@@ -1912,7 +1767,6 @@
       (sub1 (expt 2 64))))
 
    (test-case "rv64 - neg"
-     (displayln "  rv64 neg...")
      ;; neg(-42) = 42
      (check-equal?
       (run-rv64-with
@@ -1923,7 +1777,6 @@
       42))
 
    (test-case "rv64 - li"
-     (displayln "  rv64 li...")
      (check-equal?
       (run-rv64
        (lambda (buf)
@@ -1932,7 +1785,6 @@
       42))
 
    (test-case "rv64 - li negative"
-     (displayln "  rv64 li negative...")
      ;; li a0, -1 → a0 = 0xFFFFFFFFFFFFFFFF
      (check-equal?
       (run-rv64
@@ -1944,7 +1796,6 @@
    ;; --- Combined tests ---
 
    (test-case "rv64 - sum 1 to 10"
-     (displayln "  rv64 sum loop...")
      ;; a0 = 0 (sum), a1 = 10 (counter)
      ;; loop: a0 += a1; a1 -= 1; if a1 > 0, goto loop
      (check-equal?
@@ -1960,7 +1811,6 @@
       55))
 
    (test-case "rv64 - factorial 5"
-     (displayln "  rv64 factorial...")
      ;; a0 = input (5), a1 = result (1)
      ;; loop: if a0 <= 1, done; result *= a0; a0 -= 1; goto loop
      (check-equal?
@@ -1980,6 +1830,8 @@
       120))
    ))
 
-(displayln "Running tests...")
-(run-tests tests 'verbose)
-(displayln "Done!")
+(module+ main
+  (run-tests tests 'verbose))
+
+(module+ test
+  (run-tests tests))
