@@ -88,7 +88,9 @@
   (uc-reg-write-u64 uc UC_X86_REG_RSP rsp)
   ;; Initialize registers
   (for ([reg-pair init-regs])
-    (uc-reg-write-u64 uc (car reg-pair) (cdr reg-pair)))
+    (if (< (cdr reg-pair) 0)
+        (uc-reg-write-s64 uc (car reg-pair) (cdr reg-pair))
+        (uc-reg-write-u64 uc (car reg-pair) (cdr reg-pair))))
   (uc-emu-start uc CODE-ADDRESS STOP-ADDRESS 0 0)
   (define result (uc-reg-read-u64 uc UC_X86_REG_RAX))
   (uc-close uc)
@@ -113,7 +115,9 @@
   (uc-reg-write-u64 uc UC_RISCV_REG_SP (+ STACK-ADDRESS #x8000))
   ;; Initialize registers
   (for ([reg-pair init-regs])
-    (uc-reg-write-u64 uc (car reg-pair) (cdr reg-pair)))
+    (if (< (cdr reg-pair) 0)
+        (uc-reg-write-s64 uc (car reg-pair) (cdr reg-pair))
+        (uc-reg-write-u64 uc (car reg-pair) (cdr reg-pair))))
   (uc-emu-start uc CODE-ADDRESS STOP-ADDRESS 0 0)
   ;; Read result from A0 (X10)
   (define result (uc-reg-read-u64 uc UC_RISCV_REG_A0))
@@ -1634,15 +1638,24 @@
       0))
 
    (test-case "rv64 - div"
-     ;; 84 / 2 = 42
+     ;; 6 / 3 = 2
      (check-equal?
       (run-rv64-with
        (lambda (buf)
          (emit! buf (riscv64-div RV-A0 RV-A1 RV-A2))
          (emit! buf (riscv64-ret)))
-       (list (cons UC_RISCV_REG_X11 84)
+       (list (cons UC_RISCV_REG_X11 6)
+             (cons UC_RISCV_REG_X12 3)))
+      2)
+     ;; signed: -6 / 2 = -3 (read back as unsigned 0xFFFFFFFFFFFFFFFD)
+     (check-equal?
+      (run-rv64-with
+       (lambda (buf)
+         (emit! buf (riscv64-div RV-A0 RV-A1 RV-A2))
+         (emit! buf (riscv64-ret)))
+       (list (cons UC_RISCV_REG_X11 -6)
              (cons UC_RISCV_REG_X12 2)))
-      42))
+      #xFFFFFFFFFFFFFFFD))
 
    (test-case "rv64 - divu"
      ;; unsigned: 84 / 2 = 42

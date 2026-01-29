@@ -412,6 +412,14 @@
   (unless (= err UC_ERR_OK)
     (error 'uc-reg-write-u64 "Failed to write register: ~a" (uc-strerror err))))
 
+;; Write a signed 64-bit value to a register
+(define (uc-reg-write-s64 uc regid value)
+  (define buf (make-bytes 8))
+  (integer->integer-bytes value 8 #t #f buf)
+  (define err (uc-reg-write uc regid buf))
+  (unless (= err UC_ERR_OK)
+    (error 'uc-reg-write-s64 "Failed to write register: ~a" (uc-strerror err))))
+
 ;; Read a 64-bit value from a register
 (define (uc-reg-read-u64 uc regid)
   (define buf (make-bytes 8))
@@ -585,6 +593,7 @@
  uc-create-riscv32
  uc-create-riscv64
  uc-reg-write-u64
+ uc-reg-write-s64
  uc-reg-read-u64
  uc-reg-write-u32
  uc-reg-read-u32
