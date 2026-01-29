@@ -142,8 +142,8 @@
   (test-suite
    "Tests"
 
-   (test-case "movz - basic"
-     (displayln "  movz basic...")
+   (test-case "aarch64 - movz basic"
+     (displayln "  aarch64 movz basic...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -151,8 +151,8 @@
          (emit! buf (aarch64-ret))))
       42))
 
-   (test-case "movz - zero value"
-     (displayln "  movz zero...")
+   (test-case "aarch64 - movz zero value"
+     (displayln "  aarch64 movz zero...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -160,8 +160,8 @@
          (emit! buf (aarch64-ret))))
       0))
 
-   (test-case "movz - max 16-bit"
-     (displayln "  movz max...")
+   (test-case "aarch64 - movz max 16-bit"
+     (displayln "  aarch64 movz max...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -169,8 +169,8 @@
          (emit! buf (aarch64-ret))))
       #xFFFF))
 
-   (test-case "movz - shift 16"
-     (displayln "  movz shift 16...")
+   (test-case "aarch64 - movz shift 16"
+     (displayln "  aarch64 movz shift 16...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -178,8 +178,8 @@
          (emit! buf (aarch64-ret))))
       #x10000))
 
-   (test-case "movz - shift 32"
-     (displayln "  movz shift 32...")
+   (test-case "aarch64 - movz shift 32"
+     (displayln "  aarch64 movz shift 32...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -187,8 +187,8 @@
          (emit! buf (aarch64-ret))))
       #x100000000))
 
-   (test-case "movz - shift 48"
-     (displayln "  movz shift 48...")
+   (test-case "aarch64 - movz shift 48"
+     (displayln "  aarch64 movz shift 48...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -196,8 +196,8 @@
          (emit! buf (aarch64-ret))))
       #x1000000000000))
 
-   (test-case "movk - build 32-bit"
-     (displayln "  movk 32-bit...")
+   (test-case "aarch64 - movk build 32-bit"
+     (displayln "  aarch64 movk 32-bit...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -206,8 +206,8 @@
          (emit! buf (aarch64-ret))))
       #x12345678))
 
-   (test-case "movk - build 64-bit"
-     (displayln "  movk 64-bit...")
+   (test-case "aarch64 - movk build 64-bit"
+     (displayln "  aarch64 movk 64-bit...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -218,8 +218,8 @@
          (emit! buf (aarch64-ret))))
       #xDEADBEEFCAFEBABE))
 
-   (test-case "add_imm - basic"
-     (displayln "  add_imm...")
+   (test-case "aarch64 - add_imm"
+     (displayln "  aarch64 add_imm...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -228,8 +228,8 @@
          (emit! buf (aarch64-ret))))
       42))
 
-   (test-case "sub_imm - basic"
-     (displayln "  sub_imm...")
+   (test-case "aarch64 - sub_imm"
+     (displayln "  aarch64 sub_imm...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -238,8 +238,8 @@
          (emit! buf (aarch64-ret))))
       42))
 
-   (test-case "add_reg - basic"
-     (displayln "  add_reg...")
+   (test-case "aarch64 - add_reg"
+     (displayln "  aarch64 add_reg...")
      (check-equal?
       (run-uc-2arg
        (lambda (buf)
@@ -248,8 +248,8 @@
        10 32)
       42))
 
-   (test-case "sub_reg - basic"
-     (displayln "  sub_reg...")
+   (test-case "aarch64 - sub_reg"
+     (displayln "  aarch64 sub_reg...")
      (check-equal?
       (run-uc-2arg
        (lambda (buf)
@@ -258,8 +258,8 @@
        100 58)
       42))
 
-   (test-case "mul - basic"
-     (displayln "  mul...")
+   (test-case "aarch64 - mul"
+     (displayln "  aarch64 mul...")
      (check-equal?
       (run-uc-2arg
        (lambda (buf)
@@ -268,8 +268,8 @@
        6 7)
       42))
 
-   (test-case "sdiv - basic"
-     (displayln "  sdiv...")
+   (test-case "aarch64 - sdiv"
+     (displayln "  aarch64 sdiv...")
      (check-equal?
       (run-uc-2arg
        (lambda (buf)
@@ -278,8 +278,8 @@
        42 6)
       7))
 
-   (test-case "sum 1 to 10"
-     (displayln "  sum loop...")
+   (test-case "aarch64 - sum 1 to 10"
+     (displayln "  aarch64 sum loop...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -292,8 +292,8 @@
          (emit! buf (aarch64-ret))))
       55))
 
-   (test-case "factorial 5"
-     (displayln "  factorial...")
+   (test-case "aarch64 - factorial 5"
+     (displayln "  aarch64 factorial...")
      (check-equal?
       (run-uc-1arg
        (lambda (buf)
@@ -308,8 +308,8 @@
        5)
       120))
 
-   (test-case "msub - multiply-subtract"
-     (displayln "  msub...")
+   (test-case "aarch64 - msub"
+     (displayln "  aarch64 msub...")
      ;; msub X0, X1, X2, X3 = X3 - (X1 * X2)
      ;; X1=3, X2=4, X3=20 -> 20 - 12 = 8
      (check-equal?
@@ -322,8 +322,8 @@
          (emit! buf (aarch64-ret))))
       8))
 
-   (test-case "lsr_imm - logical shift right immediate"
-     (displayln "  lsr_imm...")
+   (test-case "aarch64 - lsr_imm"
+     (displayln "  aarch64 lsr_imm...")
      ;; 64 >> 2 = 16
      (check-equal?
       (run-uc-void
@@ -333,8 +333,8 @@
          (emit! buf (aarch64-ret))))
       16))
 
-   (test-case "lsr_reg - logical shift right register"
-     (displayln "  lsr_reg...")
+   (test-case "aarch64 - lsr_reg"
+     (displayln "  aarch64 lsr_reg...")
      ;; 64 >> 3 = 8
      (check-equal?
       (run-uc-2arg
@@ -344,8 +344,8 @@
        64 3)
       8))
 
-   (test-case "lsl_imm - logical shift left immediate"
-     (displayln "  lsl_imm...")
+   (test-case "aarch64 - lsl_imm"
+     (displayln "  aarch64 lsl_imm...")
      ;; 5 << 3 = 40
      (check-equal?
       (run-uc-void
@@ -355,8 +355,8 @@
          (emit! buf (aarch64-ret))))
       40))
 
-   (test-case "lsl_reg - logical shift left register"
-     (displayln "  lsl_reg...")
+   (test-case "aarch64 - lsl_reg"
+     (displayln "  aarch64 lsl_reg...")
      ;; 7 << 2 = 28
      (check-equal?
       (run-uc-2arg
@@ -366,8 +366,8 @@
        7 2)
       28))
 
-   (test-case "and_imm - bitwise AND immediate"
-     (displayln "  and_imm...")
+   (test-case "aarch64 - and_imm"
+     (displayln "  aarch64 and_imm...")
      ;; 0xFF & 0x1 = 0x1 (only imm=1 is currently supported)
      (check-equal?
       (run-uc-void
@@ -377,8 +377,8 @@
          (emit! buf (aarch64-ret))))
       1))
 
-   (test-case "clz - count leading zeros"
-     (displayln "  clz...")
+   (test-case "aarch64 - clz"
+     (displayln "  aarch64 clz...")
      ;; 0xFF has 56 leading zeros (64-bit register)
      (check-equal?
       (run-uc-void
@@ -388,8 +388,8 @@
          (emit! buf (aarch64-ret))))
       56))
 
-   (test-case "cmp_reg - compare registers"
-     (displayln "  cmp_reg...")
+   (test-case "aarch64 - cmp_reg"
+     (displayln "  aarch64 cmp_reg...")
      ;; Compare X0 and X1, branch if not equal
      (check-equal?
       (run-uc-2arg
@@ -403,8 +403,8 @@
        10 10)
       42))
 
-   (test-case "csel - conditional select"
-     (displayln "  csel...")
+   (test-case "aarch64 - csel"
+     (displayln "  aarch64 csel...")
      ;; if X2 > 0 then X0 = X0 else X0 = X1
      (check-equal?
       (run-uc-void
@@ -417,8 +417,8 @@
          (emit! buf (aarch64-ret))))
       42))
 
-   (test-case "csneg - conditional select negated"
-     (displayln "  csneg...")
+   (test-case "aarch64 - csneg"
+     (displayln "  aarch64 csneg...")
      ;; if X2 <= 0 then X0 = -X1 else X0 = X0
      (check-equal?
       (run-uc-void
@@ -432,8 +432,8 @@
       ;; Since X2 == 0 (not > 0), return -10
       (- (expt 2 64) 10)))
 
-   (test-case "nop - no operation"
-     (displayln "  nop...")
+   (test-case "aarch64 - nop"
+     (displayln "  aarch64 nop...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -443,8 +443,8 @@
          (emit! buf (aarch64-ret))))
       42))
 
-   (test-case "tst_imm - test bits immediate"
-     (displayln "  tst_imm...")
+   (test-case "aarch64 - tst_imm"
+     (displayln "  aarch64 tst_imm...")
      ;; TST sets flags without writing to a register
      ;; Test if bit 0 is set: 0xFE & 1 = 0, so Z flag is set, NE condition is false
      ;; If bit not set (Z=1), return 42, else return 99
@@ -460,8 +460,8 @@
          (emit! buf (aarch64-ret))))
       42))
 
-   (test-case "rbit - reverse bits"
-     (displayln "  rbit...")
+   (test-case "aarch64 - rbit"
+     (displayln "  aarch64 rbit...")
      ;; Reverse bits of 0x1 (0x8000000000000000)
      (check-equal?
       (run-uc-void
@@ -471,8 +471,8 @@
          (emit! buf (aarch64-ret))))
       #x8000000000000000))
 
-   (test-case "ldr/str_imm - load/store with offset"
-     (displayln "  ldr/str_imm...")
+   (test-case "aarch64 - ldr/str_imm"
+     (displayln "  aarch64 ldr/str_imm...")
      ;; Store 42 to [SP+16], then load it back (offset is in units of 8 bytes)
      (check-equal?
       (run-uc-void
@@ -484,8 +484,8 @@
          (emit! buf (aarch64-ret))))
       42))
 
-   (test-case "store/load two values (pair functionality)"
-     (displayln "  str/ldr pair...")
+   (test-case "aarch64 - str/ldr pair"
+     (displayln "  aarch64 str/ldr pair...")
      (check-equal?
       (run-uc-void
        (lambda (buf)
@@ -501,8 +501,8 @@
          (emit! buf (aarch64-ret))))
       30))
 
-   (test-case "fmov - move between GP and SIMD registers"
-     (displayln "  fmov...")
+   (test-case "aarch64 - fmov"
+     (displayln "  aarch64 fmov...")
      ;; Simple test: move data from GP to SIMD and back
      (check-equal?
       (run-uc-void
@@ -514,8 +514,8 @@
          (emit! buf (aarch64-ret))))
       42))
 
-   (test-case "dup/umov - SIMD element operations"
-     (displayln "  dup/umov...")
+   (test-case "aarch64 - dup/umov"
+     (displayln "  aarch64 dup/umov...")
      ;; DUP a GP register to all SIMD lanes, then extract one lane
      (check-equal?
       (run-uc-void
@@ -526,8 +526,8 @@
          (emit! buf (aarch64-ret))))
       42))
 
-   (test-case "add_simd - SIMD vector addition"
-     (displayln "  add_simd...")
+   (test-case "aarch64 - add_simd"
+     (displayln "  aarch64 add_simd...")
      ;; Add two vectors and extract result
      (check-equal?
       (run-uc-void
