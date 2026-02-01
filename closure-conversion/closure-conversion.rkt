@@ -65,100 +65,105 @@
         [(let ([,x* ,[e*]] ...) ,[body*] ... ,[body])
          `(let ([,x* ,e*] ...) ,(wrap body* body))]))
 
-;;; L3: CPS removes call/cc
-(define-language L3
+;;; L2-CPS: adds with-cont form for CPS conversion
+(define-language L2-CPS
   (extends L2)
   (Expr (e body)
-        (- (call/cc e))))
+        (+ (with-cont e body))))
 
-;;; CPS Transformation (L2 -> L3)
-;;; Converts to continuation-passing style and eliminates call/cc.
+;;; L3: CPS removes call/cc and with-cont
+(define-language L3
+  (extends L2-CPS)
+  (Expr (e body)
+        (- (call/cc e)
+           (with-cont e body))))
+
+(define-pass l2->l2-cps : L2 (e) -> L2-CPS ()
+  (Expr : Expr (e) -> Expr ()))
+
+(define-pass cps-step : L2-CPS (e) -> L2-CPS ()
+  (Expr : Expr (e) -> Expr ()
+        [(with-cont ,x ,body0) `(,body0 ,x)]
+        [(with-cont ,n ,body0) `(,body0 ,n)]
+        [(with-cont ,p ,body0) `(,body0 ,p)]
+        [(with-cont (lambda (,x* ...) ,body) ,body0)
+         (define $k (gensym 'k))
+         `(,body0 (lambda (,x* ... ,$k)
+                    (with-cont ,body ,$k)))]
+        [(with-cont (let ([,x* ,e*] ...) ,body) ,body0)
+         (foldr (lambda (x e acc)
+                  `(with-cont ,e
+                     (lambda (,x) ,acc)))
+                `(with-cont ,body ,body0)
+                x*
+                e*)]
+        [(with-cont (begin ,body* ... ,body) ,body0)
+         (foldr (lambda (e acc)
+                  (define r (gensym 'r))
+                  `(with-cont ,e
+                     (lambda (,r) ,acc)))
+                `(with-cont ,body ,body0)
+                body*)]
+        [(with-cont (define ,x ,e0) ,body0)
+         (define r (gensym 'r))
+         `(with-cont ,e0
+            (lambda (,r)
+              (begin ,(list `(define ,x ,r)) ... (,body0 0))))]
+        [(with-cont (call/cc ,e0) ,body0)
+         (define fv (gensym 'fv))
+         (define v (gensym 'v))
+         (define dk (gensym 'dk))
+         `(with-cont ,e0
+            (lambda (,fv)
+              (,fv (lambda (,v ,dk) (,body0 ,v)) ,body0)))]
+        [(with-cont (,p ,e* ...) ,body0)
+         (define r* (map (lambda (_) (gensym 'r)) e*))
+         (foldr (lambda (e r acc)
+                  `(with-cont ,e
+                     (lambda (,r) ,acc)))
+                `(,body0 (,p ,r* ...))
+                e*
+                r*)]
+        [(with-cont (,e0 ,e* ...) ,body0)
+         (define r (gensym 'r))
+         (define r* (map (lambda (_) (gensym 'r)) e*))
+         (foldr (lambda (e r acc)
+                  `(with-cont ,e
+                     (lambda (,r) ,acc)))
+                `(,r ,r* ... ,body0)
+                (cons e0 e*)
+                (cons r r*))]))
+
+(define-pass ensure-cps-eliminated : L2-CPS (e) -> L3 ()
+  (Expr : Expr (e) -> Expr ()))
+
 (define (cps-convert e)
-  (cps e
-       ; meta-continuation k is a Racket identity function
-       (lambda (v) v)))
-
-(define (cps e k)
-  (with-output-language (L3 Expr)
-    (nanopass-case (L2 Expr) e
-                   [,x (k x)]
-                   [,n (k n)]
-                   [(lambda (,x* ...) ,body)
-                    (let* ([kp (gensym 'k)]
-                           [params (append x* (list kp))])
-                      (k `(lambda (,params ...)
-                            ,(cps body (lambda (v) `(,kp ,(list v) ...))))))]
-                   [(let ([,x* ,e*] ...) ,body)
-                    (cps-let x* e* body k)]
-                   [(begin ,body* ... ,body)
-                    (cps-seq (append body* (list body)) k)]
-                   [(define ,x ,e)
-                    (cps e (lambda (v)
-                             `(begin ,(list `(define ,x ,v)) ... ,(k 0))))]
-                   [(call/cc ,e)
-                    (cps-callcc e k)]
-                   [(,p ,e* ...)
-                    (cps-prim-args p e* k)]
-                   [(,e ,e* ...)
-                    (cps e (lambda (fv)
-                             (cps-app-args fv e* k)))])))
-
-(define (cps-prim-args p args k)
-  (with-output-language (L3 Expr)
-    ((for/fold ([cont (lambda (acc)
-                        (k `(,p ,(reverse acc) ...)))])
-               ([arg (reverse args)])
-       (lambda (acc)
-         (cps arg (lambda (v) (cont (cons v acc))))))
-     '())))
-
-(define (cps-app-args fv args k)
-  (with-output-language (L3 Expr)
-    ((for/fold ([cont (lambda (acc)
-                        (define rv (gensym 'rv))
-                        (define c `(lambda (,(list rv) ...) ,(k rv)))
-                        (define all-args (append (reverse acc) (list c)))
-                        `(,fv ,all-args ...))])
-               ([arg (reverse args)])
-       (lambda (acc)
-         (cps arg (lambda (v) (cont (cons v acc))))))
-     '())))
-
-(define (cps-callcc f-expr k)
-  (with-output-language (L3 Expr)
-    (cps f-expr
-         (lambda (fv)
-           (define v-cap (gensym 'v))
-           (define dk (gensym 'dk))
-           (define rv (gensym 'rv))
-           (define k-captured `(lambda (,(list v-cap dk) ...) ,(k v-cap)))
-           (define k-return `(lambda (,(list rv) ...) ,(k rv)))
-           `(,fv ,(list k-captured k-return) ...)))))
-
-(define (cps-seq exprs k)
-  (if (null? (cdr exprs))
-      (cps (car exprs) k)
-      (cps (car exprs)
-           (lambda (_v)
-             (cps-seq (cdr exprs) k)))))
-
-(define (cps-let xs es body k)
-  (with-output-language (L3 Expr)
-    (if (null? xs)
-        (cps body k)
-        (cps (car es)
-             (lambda (v)
-               `(let ([,(list (car xs)) ,(list v)] ...)
-                  ,(cps-let (cdr xs) (cdr es) body k)))))))
+  (define e-cps (l2->l2-cps e))
+  (with-output-language (L2-CPS Expr)
+    (let loop ([e `(with-cont ,e-cps (lambda (x) x))])
+      (define e* (cps-step e))
+      (if (equal? e* e)
+          (ensure-cps-eliminated e)
+          (loop e*)))))
 
 (define-pass freevars : L3 (e) -> * ()
+  (definitions
+    (define (defined-names exprs)
+      (for/fold ([names (set)])
+                ([e exprs])
+        (nanopass-case (L3 Expr) e
+                       [(define ,x ,e) (set-add names x)]
+                       [else names]))))
   (Expr : Expr (e) -> * ()
         [,x (set x)]
         [(lambda (,x* ...) ,body)
          (set-subtract (freevars body) (list->set x*))]
         [(let ([,x* ,e*] ...) ,body)
          (apply set-union (set-subtract (freevars body) (list->set x*)) (map freevars e*))]
-        [(begin ,body* ... ,body) (apply set-union (map freevars (cons body body*)))]
+        [(begin ,body* ... ,body)
+         (define all (cons body body*))
+         (set-subtract (apply set-union (map freevars all))
+                       (defined-names all))]
         [(,p ,e* ...) (apply set-union (map freevars e*))]
         [(,e ,e* ...) (apply set-union (map freevars (cons e e*)))]
         [(define ,x ,e) (freevars e)]
