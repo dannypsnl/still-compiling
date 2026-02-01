@@ -3,12 +3,12 @@
          racket-llvm
          "closure-conversion.rkt")
 
-(define-language L3
-  (extends L2)
+(define-language L4
+  (extends L3)
   (Expr (e body)
         (- (lambda (x* ...) body))
         (+ (lambda-lifted x (x* ...) body))))
-(define-pass lift : L2 (e) -> L3 ()
+(define-pass lift : L3 (e) -> L4 ()
   (Expr : Expr (e) -> Expr ()
         [(lambda (,x* ...) ,[body])
          (define gen-name (gensym 'lambda))
@@ -40,7 +40,7 @@
 (define llvm-vector-ref (llvm-add-function mod "vector_ref"
                                            llvm-vector-ref-type))
 
-(define-pass compile-lambda : L3 (e) -> L3 ()
+(define-pass compile-lambda : L4 (e) -> L4 ()
   (Expr : Expr (e) -> Expr ()
         [(lambda-lifted ,x (,x* ...) ,[body])
          (define lam
@@ -59,7 +59,7 @@
 (define (compile-with [vars (make-hash)])
   (define (compile-expr e)
     (nanopass-case
-     (L3 Expr) e
+     (L4 Expr) e
      [,x (hash-ref vars x)]
      [,n (llvm-const-int (llvm-int64-type) n)]
      [(,p ,e* ...)
@@ -137,7 +137,6 @@
             transform)
    '(begin
       (define (make-adder n)
-        (lambda (m)
-          (+ 1 n m)))
-      ((make-adder 2) 3)))
+        (lambda (m) (+ m n)))
+      (* 9 (call/cc (lambda (k) (k ((make-adder 2) 3)))))))
   (displayln (llvm-module->string mod)))
