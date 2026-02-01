@@ -6,6 +6,10 @@ The closure conversion is a process that
 2. capture free variables into closure
 3. lift lambda & refers to them from closures
 
+## CPS
+
+The compiler use CPS to eliminate `call/cc` form.
+
 ## problem of the compiler
 
 This compiler skip the remove complex operands and explicate control, therefore, some valid expression cannot be written.
