@@ -1,3 +1,6 @@
-(displayln (+ 1 2))
-(displayln (+ 1.5 2))
+(define a 1)
+(define b 2)
+(displayln (+ a b))
+(let ([c 1.5])
+  (displayln (+ c 2)))
 (displayln (if (< 1 2) 10 20))
