@@ -116,30 +116,34 @@
          (for ([x x*]
                [i (length x*)])
            (hash-set! vars x (llvm-get-param lam i)))
-         (llvm-build-ret builder ((compile-with vars) body))
+         ((compile-with vars) body #:tail? #t)
 
          ; At this point all data are emitted to LLVM, this is a junked value, we will ignore this output
          e]))
 
 ;;; Main expression compiler
 (define (compile-with [vars (make-hash)])
-  (define (compile-expr e)
+  (define (compile-expr e #:tail? [tail? #f])
+    ;; Helper: emit ret if in tail position, return val either way
+    (define (maybe-ret val)
+      (when tail? (llvm-build-ret builder val))
+      val)
     (nanopass-case
      (L4 Expr) e
      ;; Variable lookup
-     [,x (hash-ref vars x)]
+     [,x (maybe-ret (hash-ref vars x))]
      ;; Integer literal: tag it (n << 3)
-     [,n (llvm-const-int i64 (arithmetic-shift n 3))]
+     [,n (maybe-ret (llvm-const-int i64 (arithmetic-shift n 3)))]
      ;; Float literal: call scm_make_float
-     [,f (llvm-build-call2 builder (rt-type 'scm_make_float) (rt-fn 'scm_make_float)
-                           (list (llvm-const-real dbl f)))]
+     [,f (maybe-ret (llvm-build-call2 builder (rt-type 'scm_make_float) (rt-fn 'scm_make_float)
+                                      (list (llvm-const-real dbl f))))]
      ;; Boolean literal
-     [,b (llvm-const-int i64 (if b SCM_TRUE SCM_FALSE))]
+     [,b (maybe-ret (llvm-const-int i64 (if b SCM_TRUE SCM_FALSE)))]
      ;; Null
-     [(null) (llvm-const-int i64 SCM_NULL_VAL)]
+     [(null) (maybe-ret (llvm-const-int i64 SCM_NULL_VAL))]
      ;; Void
-     [(void) (llvm-const-int i64 SCM_VOID_VAL)]
-     ;; If expression: basic blocks + phi
+     [(void) (maybe-ret (llvm-const-int i64 SCM_VOID_VAL))]
+     ;; If expression
      [(if ,e0 ,e1 ,e2)
       (define cond-val (compile-expr e0))
       ;; Check if cond == #f (value 5)
@@ -149,106 +153,122 @@
                           (llvm-get-insert-block builder)))
       (define then-bb (llvm-append-basic-block current-fn))
       (define else-bb (llvm-append-basic-block current-fn))
-      (define merge-bb (llvm-append-basic-block current-fn))
-      ;; Branch: if false → else, otherwise → then
-      (llvm-build-cond-br builder is-false else-bb then-bb)
-      ;; Then branch
-      (llvm-builder-position-at-end builder then-bb)
-      (define then-val (compile-expr e1))
-      (define then-end-bb (llvm-get-insert-block builder))
-      (llvm-build-br builder merge-bb)
-      ;; Else branch
-      (llvm-builder-position-at-end builder else-bb)
-      (define else-val (compile-expr e2))
-      (define else-end-bb (llvm-get-insert-block builder))
-      (llvm-build-br builder merge-bb)
-      ;; Merge with phi
-      (llvm-builder-position-at-end builder merge-bb)
-      (define phi (llvm-build-phi builder i64))
-      (llvm-add-incoming phi (list then-val else-val)
-                         (list then-end-bb else-end-bb))
-      phi]
+      (cond
+        [tail?
+         ;; In tail position: each branch emits its own ret, no merge needed
+         (llvm-build-cond-br builder is-false else-bb then-bb)
+         (llvm-builder-position-at-end builder then-bb)
+         (compile-expr e1 #:tail? #t)
+         (llvm-builder-position-at-end builder else-bb)
+         (compile-expr e2 #:tail? #t)
+         ;; Return dummy — caller ignores this since ret was already emitted
+         (llvm-const-int i64 0)]
+        [else
+         (define merge-bb (llvm-append-basic-block current-fn))
+         ;; Branch: if false → else, otherwise → then
+         (llvm-build-cond-br builder is-false else-bb then-bb)
+         ;; Then branch
+         (llvm-builder-position-at-end builder then-bb)
+         (define then-val (compile-expr e1))
+         (define then-end-bb (llvm-get-insert-block builder))
+         (llvm-build-br builder merge-bb)
+         ;; Else branch
+         (llvm-builder-position-at-end builder else-bb)
+         (define else-val (compile-expr e2))
+         (define else-end-bb (llvm-get-insert-block builder))
+         (llvm-build-br builder merge-bb)
+         ;; Merge with phi
+         (llvm-builder-position-at-end builder merge-bb)
+         (define phi (llvm-build-phi builder i64))
+         (llvm-add-incoming phi (list then-val else-val)
+                            (list then-end-bb else-end-bb))
+         phi])]
      ;; Closure forms
      [(make-closure ,e0 ,e1)
-      (llvm-build-call2 builder (rt-type 'scm_make_closure) (rt-fn 'scm_make_closure)
-                        (list (compile-expr e0) (compile-expr e1)))]
+      (maybe-ret (llvm-build-call2 builder (rt-type 'scm_make_closure) (rt-fn 'scm_make_closure)
+                                   (list (compile-expr e0) (compile-expr e1))))]
      [(closure-code ,e)
-      (llvm-build-call2 builder (rt-type 'scm_closure_code) (rt-fn 'scm_closure_code)
-                        (list (compile-expr e)))]
+      (maybe-ret (llvm-build-call2 builder (rt-type 'scm_closure_code) (rt-fn 'scm_closure_code)
+                                   (list (compile-expr e))))]
      [(closure-env ,e)
-      (llvm-build-call2 builder (rt-type 'scm_closure_env) (rt-fn 'scm_closure_env)
-                        (list (compile-expr e)))]
+      (maybe-ret (llvm-build-call2 builder (rt-type 'scm_closure_env) (rt-fn 'scm_closure_env)
+                                   (list (compile-expr e))))]
      ;; Primitive applications
      [(,p ,e* ...)
       (define ne* (map compile-expr e*))
-      (case p
-        [(+)  (foldl (lambda (e acc)
-                       (llvm-build-call2 builder (rt-type 'scm_add) (rt-fn 'scm_add) (list acc e)))
-                     (car ne*) (cdr ne*))]
-        [(-)  (foldl (lambda (e acc)
-                       (llvm-build-call2 builder (rt-type 'scm_sub) (rt-fn 'scm_sub) (list acc e)))
-                     (car ne*) (cdr ne*))]
-        [(*)  (foldl (lambda (e acc)
-                       (llvm-build-call2 builder (rt-type 'scm_mul) (rt-fn 'scm_mul) (list acc e)))
-                     (car ne*) (cdr ne*))]
-        [(/)  (foldl (lambda (e acc)
-                       (llvm-build-call2 builder (rt-type 'scm_div) (rt-fn 'scm_div) (list acc e)))
-                     (car ne*) (cdr ne*))]
-        [(=)  (llvm-build-call2 builder (rt-type 'scm_eq) (rt-fn 'scm_eq) ne*)]
-        [(<)  (llvm-build-call2 builder (rt-type 'scm_lt) (rt-fn 'scm_lt) ne*)]
-        [(>)  (llvm-build-call2 builder (rt-type 'scm_gt) (rt-fn 'scm_gt) ne*)]
-        [(>=) (llvm-build-call2 builder (rt-type 'scm_ge) (rt-fn 'scm_ge) ne*)]
-        [(<=) (llvm-build-call2 builder (rt-type 'scm_le) (rt-fn 'scm_le) ne*)]
-        [(cons) (llvm-build-call2 builder (rt-type 'scm_cons) (rt-fn 'scm_cons) ne*)]
-        [(car)  (llvm-build-call2 builder (rt-type 'scm_car) (rt-fn 'scm_car) ne*)]
-        [(cdr)  (llvm-build-call2 builder (rt-type 'scm_cdr) (rt-fn 'scm_cdr) ne*)]
-        [(vector)
-         (define n (length ne*))
-         (define vec (llvm-build-call2 builder (rt-type 'scm_make_vector) (rt-fn 'scm_make_vector)
-                                       (list (llvm-const-int i64 (arithmetic-shift n 3)))))
-         (for ([ne ne*]
-               [i n])
-           (llvm-build-call2 builder (rt-type 'scm_vector_set) (rt-fn 'scm_vector_set)
-                             (list vec (llvm-const-int i64 (arithmetic-shift i 3)) ne)))
-         vec]
-        [(vector-ref)    (llvm-build-call2 builder (rt-type 'scm_vector_ref) (rt-fn 'scm_vector_ref) ne*)]
-        [(vector-set!)   (llvm-build-call2 builder (rt-type 'scm_vector_set) (rt-fn 'scm_vector_set) ne*)]
-        [(vector-length) (llvm-build-call2 builder (rt-type 'scm_vector_length) (rt-fn 'scm_vector_length) ne*)]
-        [(null?)    (llvm-build-call2 builder (rt-type 'scm_is_null) (rt-fn 'scm_is_null) ne*)]
-        [(pair?)    (llvm-build-call2 builder (rt-type 'scm_is_pair) (rt-fn 'scm_is_pair) ne*)]
-        [(number?)  (llvm-build-call2 builder (rt-type 'scm_is_number) (rt-fn 'scm_is_number) ne*)]
-        [(boolean?) (llvm-build-call2 builder (rt-type 'scm_is_boolean) (rt-fn 'scm_is_boolean) ne*)]
-        [(vector?)  (llvm-build-call2 builder (rt-type 'scm_is_vector) (rt-fn 'scm_is_vector) ne*)]
-        [(not)      (llvm-build-call2 builder (rt-type 'scm_not) (rt-fn 'scm_not) ne*)]
-        [(display)  (llvm-build-call2 builder (rt-type 'scm_display) (rt-fn 'scm_display) ne*)]
-        [(displayln)(llvm-build-call2 builder (rt-type 'scm_displayln) (rt-fn 'scm_displayln) ne*)])]
+      (maybe-ret
+       (case p
+         [(+)  (foldl (lambda (e acc)
+                        (llvm-build-call2 builder (rt-type 'scm_add) (rt-fn 'scm_add) (list acc e)))
+                      (car ne*) (cdr ne*))]
+         [(-)  (foldl (lambda (e acc)
+                        (llvm-build-call2 builder (rt-type 'scm_sub) (rt-fn 'scm_sub) (list acc e)))
+                      (car ne*) (cdr ne*))]
+         [(*)  (foldl (lambda (e acc)
+                        (llvm-build-call2 builder (rt-type 'scm_mul) (rt-fn 'scm_mul) (list acc e)))
+                      (car ne*) (cdr ne*))]
+         [(/)  (foldl (lambda (e acc)
+                        (llvm-build-call2 builder (rt-type 'scm_div) (rt-fn 'scm_div) (list acc e)))
+                      (car ne*) (cdr ne*))]
+         [(=)  (llvm-build-call2 builder (rt-type 'scm_eq) (rt-fn 'scm_eq) ne*)]
+         [(<)  (llvm-build-call2 builder (rt-type 'scm_lt) (rt-fn 'scm_lt) ne*)]
+         [(>)  (llvm-build-call2 builder (rt-type 'scm_gt) (rt-fn 'scm_gt) ne*)]
+         [(>=) (llvm-build-call2 builder (rt-type 'scm_ge) (rt-fn 'scm_ge) ne*)]
+         [(<=) (llvm-build-call2 builder (rt-type 'scm_le) (rt-fn 'scm_le) ne*)]
+         [(cons) (llvm-build-call2 builder (rt-type 'scm_cons) (rt-fn 'scm_cons) ne*)]
+         [(car)  (llvm-build-call2 builder (rt-type 'scm_car) (rt-fn 'scm_car) ne*)]
+         [(cdr)  (llvm-build-call2 builder (rt-type 'scm_cdr) (rt-fn 'scm_cdr) ne*)]
+         [(vector)
+          (define n (length ne*))
+          (define vec (llvm-build-call2 builder (rt-type 'scm_make_vector) (rt-fn 'scm_make_vector)
+                                        (list (llvm-const-int i64 (arithmetic-shift n 3)))))
+          (for ([ne ne*]
+                [i n])
+            (llvm-build-call2 builder (rt-type 'scm_vector_set) (rt-fn 'scm_vector_set)
+                              (list vec (llvm-const-int i64 (arithmetic-shift i 3)) ne)))
+          vec]
+         [(vector-ref)    (llvm-build-call2 builder (rt-type 'scm_vector_ref) (rt-fn 'scm_vector_ref) ne*)]
+         [(vector-set!)   (llvm-build-call2 builder (rt-type 'scm_vector_set) (rt-fn 'scm_vector_set) ne*)]
+         [(vector-length) (llvm-build-call2 builder (rt-type 'scm_vector_length) (rt-fn 'scm_vector_length) ne*)]
+         [(null?)    (llvm-build-call2 builder (rt-type 'scm_is_null) (rt-fn 'scm_is_null) ne*)]
+         [(pair?)    (llvm-build-call2 builder (rt-type 'scm_is_pair) (rt-fn 'scm_is_pair) ne*)]
+         [(number?)  (llvm-build-call2 builder (rt-type 'scm_is_number) (rt-fn 'scm_is_number) ne*)]
+         [(boolean?) (llvm-build-call2 builder (rt-type 'scm_is_boolean) (rt-fn 'scm_is_boolean) ne*)]
+         [(vector?)  (llvm-build-call2 builder (rt-type 'scm_is_vector) (rt-fn 'scm_is_vector) ne*)]
+         [(not)      (llvm-build-call2 builder (rt-type 'scm_not) (rt-fn 'scm_not) ne*)]
+         [(display)  (llvm-build-call2 builder (rt-type 'scm_display) (rt-fn 'scm_display) ne*)]
+         [(displayln) (llvm-build-call2 builder (rt-type 'scm_displayln) (rt-fn 'scm_displayln) ne*)]))]
      ;; Closure / indirect function call
      [(,e ,e* ...)
       (define ft (llvm-function-type i64 (make-list (length e*) i64)))
       (define f (llvm-build-int->ptr builder
                                      (compile-expr e)
                                      (llvm-pointer-type ft)))
-      (llvm-build-call2 builder ft f (map compile-expr e*))]
+      (define call (llvm-build-call2 builder ft f (map compile-expr e*)))
+      (when tail?
+        (llvm-set-tail-call-kind call 2)  ; 2 = musttail
+        (llvm-build-ret builder call))
+      call]
      ;; Begin
      [(begin ,body* ... ,body)
       (for-each compile-expr body*)
-      (compile-expr body)]
+      (compile-expr body #:tail? tail?)]
      ;; Define
      [(define ,x ,e)
       (define ne (compile-expr e))
       (hash-set! vars x ne)
-      ne]
+      (maybe-ret ne)]
      ;; Lambda-lifted reference: convert function pointer to i64
      [(lambda-lifted ,x (,x* ...) ,body)
-      (llvm-build-ptr->int builder
-                           (llvm-get-named-function mod (symbol->string x))
-                           i64)]
+      (maybe-ret (llvm-build-ptr->int builder
+                                      (llvm-get-named-function mod (symbol->string x))
+                                      i64))]
      ;; Let
      [(let ([,x* ,e*] ...) ,body)
       (define new-vars (hash-copy vars))
       (for ([x x*] [e e*])
         (hash-set! new-vars x (compile-expr e)))
-      ((compile-with new-vars) body)]
+      ((compile-with new-vars) body #:tail? tail?)]
      [else (error 'compile-with "unhandled expression: ~a" e)]))
   compile-expr)
 
