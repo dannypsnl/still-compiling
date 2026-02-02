@@ -1,0 +1,4 @@
+*.ll
+*.out
+*.bc
+build/
