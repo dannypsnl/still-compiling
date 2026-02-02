@@ -234,6 +234,15 @@
 
 (define (desugar-list e)
   (match e
+    [`(and) #t]
+    [`(and ,e0) (desugar-list e0)]
+    [`(and ,e0 ,rest ...)
+     (desugar-list `(if ,e0 (and ,@rest) #f))]
+    [`(or) #f]
+    [`(or ,e0) (desugar-list e0)]
+    [`(or ,e0 ,rest ...)
+     (let ([t (gensym 'or-tmp)])
+       (desugar-list `(let ([,t ,e0]) (if ,t ,t (or ,@rest)))))]
     [`(list ,elems ...)
      (foldr (lambda (el acc) `(cons ,(desugar-list el) ,acc))
             '(null)
