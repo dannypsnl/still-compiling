@@ -162,22 +162,23 @@
 (define-pass l2-cps->l3 : L2-CPS (e) -> L3 ()
   (Expr : Expr (e) -> Expr ()))
 
-(define (has-call/cc? e)
-  (match e
-    [`(call/cc ,_) #t]
-    [`(,parts ...) (ormap has-call/cc? parts)]
-    [_ #f]))
 (define (cps-conversion e)
   (with-output-language (L2-CPS Expr)
-    (cond
-      [(has-call/cc? e)
-       (define e-cps (l2->l2-cps e))
-       (let loop ([e `(with-cont ,e-cps (lambda (x) x))])
-         (define e* (cps-step e))
-         (cond
-           [(equal? e* e) (l2-cps->l3 e*)]
-           [else (loop e*)]))]
-      [else (l2-cps->l3 (l2->l2-cps e))])))
+    (define e-cps (l2->l2-cps e))
+    (let loop ([e `(with-cont ,e-cps (lambda (x) x))])
+      (define e* (cps-step e))
+      (cond
+        [(equal? e* e) (beta-reduce (l2-cps->l3 e*))]
+        [else (loop e*)]))))
+
+(define-pass beta-reduce : L3 (e) -> L3 ()
+  (Expr : Expr (e) -> Expr ()
+        [(,[e0] ,[e*] ...)
+         (nanopass-case (L3 Expr) e0
+                        [(lambda (,x* ...) ,body)
+                         (guard (= (length x*) (length e*)))
+                         `(let ([,x* ,e*] ...) ,body)]
+                        [else `(,e0 ,e* ...)])]))
 
 (define-pass freevars : L3 (e) -> * ()
   (definitions
