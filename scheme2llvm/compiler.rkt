@@ -1,6 +1,7 @@
 #lang racket
 (provide L3-clos L0
-         compile/main)
+         compile/main
+         debug-after)
 (require nanopass)
 
 (define (primitive? x)
@@ -335,16 +336,31 @@
              `(let ([clos ,e])
                 ((closure-code clos) ,e* ... (closure-env clos))))]))
 
+;;; Debug machinery
+(define debug-after (make-parameter #f))
+
+(define ((make-debug-pass pass name) x)
+  (define result (pass x))
+  (when (equal? (debug-after) name)
+    (printf "=== after ~a ===~n" name)
+    (pretty-print result)
+    (newline))
+  result)
+
 (define (compile/main e)
   (define-parser parse-L-surface L-surface)
-  ((compose closure-call
-            closure-conversion
-            eliminate-deadcode
-            constant-propagate
-            beta-reduce
-            cps-conversion
-            begin-wrapping
-            remove-define-procedure-form
-            desugar
+  (define (pass p name)
+    (if (debug-after)
+        (make-debug-pass p name)
+        p))
+  ((compose (pass closure-call 'closure-call)
+            (pass closure-conversion 'closure-conversion)
+            (pass eliminate-deadcode 'eliminate-deadcode)
+            (pass constant-propagate 'constant-propagate)
+            (pass beta-reduce 'beta-reduce)
+            (pass cps-conversion 'cps-conversion)
+            (pass begin-wrapping 'begin-wrapping)
+            (pass remove-define-procedure-form 'remove-define-procedure-form)
+            (pass desugar 'desugar)
             parse-L-surface)
    e))
