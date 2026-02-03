@@ -159,17 +159,25 @@
                 (cons e0 e*)
                 (cons r r*))]))
 
-(define-pass ensure-cps-eliminated : L2-CPS (e) -> L3 ()
+(define-pass l2-cps->l3 : L2-CPS (e) -> L3 ()
   (Expr : Expr (e) -> Expr ()))
 
+(define (has-call/cc? e)
+  (match e
+    [`(call/cc ,_) #t]
+    [`(,parts ...) (ormap has-call/cc? parts)]
+    [_ #f]))
 (define (cps-conversion e)
-  (define e-cps (l2->l2-cps e))
   (with-output-language (L2-CPS Expr)
-    (let loop ([e `(with-cont ,e-cps (lambda (x) x))])
-      (define e* (cps-step e))
-      (cond
-        [(equal? e* e) (ensure-cps-eliminated e*)]
-        [else (loop e*)]))))
+    (cond
+      [(has-call/cc? e)
+       (define e-cps (l2->l2-cps e))
+       (let loop ([e `(with-cont ,e-cps (lambda (x) x))])
+         (define e* (cps-step e))
+         (cond
+           [(equal? e* e) (l2-cps->l3 e*)]
+           [else (loop e*)]))]
+      [else (l2-cps->l3 (l2->l2-cps e))])))
 
 (define-pass freevars : L3 (e) -> * ()
   (definitions
