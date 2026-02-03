@@ -115,7 +115,7 @@
          (llvm-builder-position-at-end builder entry)
          (define env (make-env))
          (for ([x x*]
-               [i (length x*)])
+               [i (in-naturals)])
            (bind! env x (llvm-get-param lam i)))
          ((compile-with env) body #:tail? #t)
 
