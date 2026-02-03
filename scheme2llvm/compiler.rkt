@@ -248,6 +248,9 @@
                [(propagatable? ne)
                 (hash-set! subst x ne)
                 (values kx ke)]
+               [(= (use-times x body) 1)
+                (hash-set! subst x ne)
+                (values kx ke)]
                ;; Otherwise keep the binding
                [else (values (cons x kx) (cons ne ke))])))
          (define new-body (Expr body))
@@ -258,21 +261,72 @@
              new-body
              `(let ([,kept-x ,kept-e] ...) ,new-body))]))
 
+(define (use-times x body)
+  (define counter (make-hash))
+
+  (let/ec return
+    (define (T e)
+      (nanopass-case (L3 Expr) e
+                     [,x0
+                      (when (eq? x x0)
+                        (hash-update! counter x
+                                      (lambda (v) (add1 v))
+                                      0))]
+                     [(if ,e0 ,e1 ,e2)
+                      (T e0)
+                      (T e1)
+                      (T e2)]
+                     [(begin ,body* ... ,body)
+                      (for ([body body*]) (T body))
+                      (T body)]
+                     [(,p ,e* ...)
+                      (for ([e e*]) (T e))]
+                     [(,e ,e* ...)
+                      (T e)
+                      (for ([e e*]) (T e))]
+                     [(define ,x0 ,e)
+                      (T e)
+                      (when (eq? x x0)
+                        (return (hash-ref counter x 0)))]
+                     [(let ([,x* ,e*] ...) ,body)
+                      (for ([e e*]) (T e))
+                      (unless (for/or ([x0 x*]) (eq? x x0))
+                        (T body))]
+                     [(lambda (,x* ...) ,body)
+                      (unless (for/or ([x0 x*]) (eq? x x0))
+                        (T body))]
+                     [else (void)]))
+
+    (T body)
+    (hash-ref counter x 0)))
+
 ;;; Remove unused let bindings
 (define-pass eliminate-deadcode : L3 (e) -> L3 ()
   (Expr : Expr (e) -> Expr ()
         [(let ([,x* ,e*] ...) ,[body])
          (define used (freevars body))
-         (define-values (kept-x kept-e)
-           (for/fold ([kx '()] [ke '()])
+         (define-values (kept-x kept-e effects)
+           (for/fold ([kx '()]
+                      [ke '()]
+                      [effects '()])
                      ([x x*] [e e*])
              (define ne (Expr e))
-             (if (set-member? used x)
-                 (values (cons x kx) (cons ne ke))
-                 (values kx ke))))
+             (cond
+               [(set-member? used x)
+                (values (cons x kx) (cons ne ke) effects)]
+               [else
+                (values kx ke (cons ne effects))])))
          (cond
-           [(empty? kept-x) body]
-           [else `(let ([,(reverse kept-x) ,(reverse kept-e)] ...) ,body)])]))
+           [(and (empty? kept-x) (empty? effects)) body]
+           [(empty? kept-x)
+            `(begin
+               ,(reverse effects) ...
+               ,body)]
+           [else
+            `(let ([,(reverse kept-x) ,(reverse kept-e)] ...)
+               (begin
+                 ,(reverse effects) ...
+                 ,body))])]))
 
 (define-pass freevars : L3 (e) -> * ()
   (definitions
