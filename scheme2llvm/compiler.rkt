@@ -174,7 +174,7 @@
     (let loop ([e `(with-cont ,e-cps (lambda (x) x))])
       (define e* (cps-step e))
       (cond
-        [(equal? e* e) (beta-reduce (l2-cps->l3 e*))]
+        [(equal? e* e)  (l2-cps->l3 e*)]
         [else (loop e*)]))))
 
 (define-pass beta-reduce : L3 (e) -> L3 ()
@@ -185,6 +185,46 @@
                          (guard (= (length x*) (length e*)))
                          `(let ([,x* ,e*] ...) ,body)]
                         [else `(,e0 ,e* ...)])]))
+
+(define (propagatable? e)
+  (nanopass-case (L3 Expr) e
+                 [,x #t]
+                 [,n #t]
+                 [,f #t]
+                 [,b #t]
+                 [,s #t]
+                 [,p #t]
+                 [(null) #t]
+                 [(void) #t]
+                 [else #f]))
+
+(define-pass constant-propagate : L3 (e) -> L3 ()
+  (definitions
+    (define subst (make-hash))
+    (define (lookup x)
+      (hash-ref subst x #f)))
+  (Expr : Expr (e) -> Expr ()
+        [,x (or (lookup x) x)]
+        [(let ([,x* ,e*] ...) ,body)
+         ;; Process bindings: propagate if value is constant/variable
+         (define-values (kept-x kept-e)
+           (for/fold ([kx '()] [ke '()])
+                     ([x x*] [e e*])
+             (define ne (Expr e))
+             (cond
+               ;; Propagatable: substitute directly
+               [(propagatable? ne)
+                (hash-set! subst x ne)
+                (values kx ke)]
+               ;; Otherwise keep the binding
+               [else (values (cons x kx) (cons ne ke))])))
+         (define new-body (Expr body))
+         ;; Clean up substitutions
+         (for ([x x*]) (hash-remove! subst x))
+         ;; Build result
+         (if (empty? kept-x)
+             new-body
+             `(let ([,kept-x ,kept-e] ...) ,new-body))]))
 
 (define-pass freevars : L3 (e) -> * ()
   (definitions
@@ -271,6 +311,8 @@
   (define-parser parse-L0 L0)
   ((compose closure-call
             closure-conversion
+            constant-propagate
+            beta-reduce
             cps-conversion
             begin-wrapping
             remove-define-procedure-form
