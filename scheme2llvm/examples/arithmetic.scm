@@ -2,7 +2,7 @@
 (define b 2)
 (displayln (+ a b))
 (let ([a 1.5])
-  (displayln (+ a 2)))
+  (displayln (+ a b)))
 (displayln (if (< 1 2) 10 20))
 (define c (* 3 (call/cc (lambda (k) (k 2)))))
 (displayln c)
