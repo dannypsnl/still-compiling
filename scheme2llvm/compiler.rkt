@@ -25,7 +25,7 @@
 (define (fixnum? x) (and (number? x) (exact? x) (integer? x)))
 (define (scm-string? x) (string? x))
 
-(define-language L0
+(define-language L-surface
   (terminals
    (primitive (p))
    (symbol (x))
@@ -43,6 +43,9 @@
         (null)
         (void)
         (if e0 e1 e2)
+        (and e* ...)
+        (or e* ...)
+        (list e* ...)
         (begin body* ... body)
         (lambda (x* ...) body* ... body)
         (let ([x* e*] ...)
@@ -52,6 +55,32 @@
         (define x e)
         (call/cc e)
         (e e* ...)))
+
+(define-language L0
+  (extends L-surface)
+  (Expr (e body)
+        (- (and e* ...)
+           (or e* ...)
+           (list e* ...))))
+
+(define-pass desugar : L-surface (e) -> L0 ()
+  (Expr : Expr (e) -> Expr ()
+        [(and) #t]
+        [(and ,[e]) e]
+        [(and ,[e0] ,e* ...)
+         `(if ,e0 ,(Expr (with-output-language (L-surface Expr) `(and ,e* ...))) #f)]
+        [(or) #f]
+        [(or ,[e]) e]
+        [(or ,e0 ,e* ...)
+         (define t (gensym 'or-tmp))
+         `(let ([,t ,(Expr e0)])
+            (if ,t ,t ,(Expr (with-output-language (L-surface Expr) `(or ,e* ...)))))]
+        [(list) `(null)]
+        [(list ,[e*] ...)
+         (foldr (lambda (el acc)
+                  (with-output-language (L0 Expr) `(cons ,el ,acc)))
+                `(null)
+                e*)]))
 
 (define-language L1
   (extends L0)
@@ -201,10 +230,12 @@
 (define-pass constant-propagate : L3 (e) -> L3 ()
   (definitions
     (define subst (make-hash))
-    (define (lookup x)
-      (hash-ref subst x #f)))
+    (define (replace/propagated x)
+      (if (hash-has-key? subst x)
+          (hash-ref subst x)
+          x)))
   (Expr : Expr (e) -> Expr ()
-        [,x (or (lookup x) x)]
+        [,x (replace/propagated x)]
         [(let ([,x* ,e*] ...) ,body)
          ;; Process bindings: propagate if value is constant/variable
          (define-values (kept-x kept-e)
@@ -239,8 +270,7 @@
                  (values (cons x kx) (cons ne ke))
                  (values kx ke))))
          (cond
-           [(empty? kept-x)
-            body]
+           [(empty? kept-x) body]
            [else `(let ([,(reverse kept-x) ,(reverse kept-e)] ...) ,body)])]))
 
 (define-pass freevars : L3 (e) -> * ()
@@ -305,27 +335,8 @@
              `(let ([clos ,e])
                 ((closure-code clos) ,e* ... (closure-env clos))))]))
 
-(define (desugar-list e)
-  (match e
-    [`(and) #t]
-    [`(and ,e0) (desugar-list e0)]
-    [`(and ,e0 ,rest ...)
-     (desugar-list `(if ,e0 (and ,@rest) #f))]
-    [`(or) #f]
-    [`(or ,e0) (desugar-list e0)]
-    [`(or ,e0 ,rest ...)
-     (let ([t (gensym 'or-tmp)])
-       (desugar-list `(let ([,t ,e0]) (if ,t ,t (or ,@rest)))))]
-    [`(list ,elems ...)
-     (foldr (lambda (el acc) `(cons ,(desugar-list el) ,acc))
-            '(null)
-            elems)]
-    [`(,parts ...)
-     (map desugar-list parts)]
-    [_ e]))
-
 (define (compile/main e)
-  (define-parser parse-L0 L0)
+  (define-parser parse-L-surface L-surface)
   ((compose closure-call
             closure-conversion
             eliminate-deadcode
@@ -334,6 +345,6 @@
             cps-conversion
             begin-wrapping
             remove-define-procedure-form
-            parse-L0
-            desugar-list)
+            desugar
+            parse-L-surface)
    e))
