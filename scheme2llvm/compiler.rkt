@@ -226,6 +226,23 @@
              new-body
              `(let ([,kept-x ,kept-e] ...) ,new-body))]))
 
+;;; Remove unused let bindings
+(define-pass eliminate-deadcode : L3 (e) -> L3 ()
+  (Expr : Expr (e) -> Expr ()
+        [(let ([,x* ,e*] ...) ,[body])
+         (define used (freevars body))
+         (define-values (kept-x kept-e)
+           (for/fold ([kx '()] [ke '()])
+                     ([x x*] [e e*])
+             (define ne (Expr e))
+             (if (set-member? used x)
+                 (values (cons x kx) (cons ne ke))
+                 (values kx ke))))
+         (cond
+           [(empty? kept-x)
+            body]
+           [else `(let ([,(reverse kept-x) ,(reverse kept-e)] ...) ,body)])]))
+
 (define-pass freevars : L3 (e) -> * ()
   (definitions
     (define (defined-names exprs)
@@ -311,6 +328,7 @@
   (define-parser parse-L0 L0)
   ((compose closure-call
             closure-conversion
+            eliminate-deadcode
             constant-propagate
             beta-reduce
             cps-conversion
