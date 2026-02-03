@@ -1,0 +1,6 @@
+(displayln "hello")
+(displayln (string-length "hello"))
+(displayln (string-ref "hello" 0))
+(displayln (string-append "hello" " world"))
+(displayln (string? "hello"))
+(displayln (string? 42))

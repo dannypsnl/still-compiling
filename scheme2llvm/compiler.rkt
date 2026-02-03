@@ -12,8 +12,10 @@
                 cons car cdr
                 ; vector
                 vector vector-ref vector-set! vector-length
+                ; string
+                string-ref string-set! string-length string-append
                 ; predicates
-                null? pair? number? boolean? vector?
+                null? pair? number? boolean? vector? string?
                 ; logic
                 not
                 ; io
@@ -21,6 +23,7 @@
 
 (define (flonum? x) (and (number? x) (inexact? x)))
 (define (fixnum? x) (and (number? x) (exact? x) (integer? x)))
+(define (scm-string? x) (string? x))
 
 (define-language L0
   (terminals
@@ -28,12 +31,14 @@
    (symbol (x))
    (fixnum (n))
    (flonum (f))
-   (boolean (b)))
+   (boolean (b))
+   (scm-string (s)))
   (Expr (e body)
         x
         n
         f
         b
+        s
         p
         (null)
         (void)
@@ -101,6 +106,7 @@
         [(with-cont ,n ,body0) `(,body0 ,n)]
         [(with-cont ,f ,body0) `(,body0 ,f)]
         [(with-cont ,b ,body0) `(,body0 ,b)]
+        [(with-cont ,s ,body0) `(,body0 ,s)]
         [(with-cont ,p ,body0) `(,body0 ,p)]
         [(with-cont (null) ,body0) `(,body0 (null))]
         [(with-cont (void) ,body0) `(,body0 (void))]
@@ -193,6 +199,7 @@
         [,n (set)]
         [,f (set)]
         [,b (set)]
+        [,s (set)]
         [(null) (set)]
         [(void) (set)]
         [(if ,e0 ,e1 ,e2) (set-union (freevars e0) (freevars e1) (freevars e2))]

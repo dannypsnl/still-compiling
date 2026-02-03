@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <inttypes.h>
 
 /* Low 3-bit tag scheme on int64_t */
@@ -11,8 +12,8 @@
 #define TAG_CLOS   3  /* 011 */
 #define TAG_FLOAT  4  /* 100 */
 #define TAG_BOOL   5  /* 101 */
-#define TAG_NULL   6  /* 110 */
-#define TAG_VOID   7  /* 111 */
+#define TAG_IMM    6  /* 110 - null and void distinguished by payload */
+#define TAG_STRING 7  /* 111 */
 
 #define MAKE_INT(n)   ((int64_t)(n) << 3)
 #define GET_INT(v)    ((int64_t)(v) >> 3)
@@ -21,8 +22,8 @@
 
 #define SCM_TRUE   13  /* (1 << 3) | TAG_BOOL */
 #define SCM_FALSE  5   /* (0 << 3) | TAG_BOOL */
-#define SCM_NULL   TAG_NULL  /* 6 */
-#define SCM_VOID   TAG_VOID  /* 7 */
+#define SCM_NULL   6   /* (0 << 3) | TAG_IMM */
+#define SCM_VOID   14  /* (1 << 3) | TAG_IMM */
 
 #define IS_INT(v)   (GET_TAG(v) == TAG_INT)
 #define IS_FLOAT(v) (GET_TAG(v) == TAG_FLOAT)
@@ -156,6 +157,59 @@ int64_t scm_is_vector(int64_t v) { return (GET_TAG(v) == TAG_VEC) ? SCM_TRUE : S
 /* ----- Logic ----- */
 int64_t scm_not(int64_t v) { return (v == SCM_FALSE) ? SCM_TRUE : SCM_FALSE; }
 
+/* ----- String ----- */
+/* Layout: [tagged_length (i64)] [char bytes... (null-terminated)] */
+int64_t scm_make_string(int64_t len) {
+    int64_t raw_len = GET_INT(len);
+    int64_t *str = (int64_t *)malloc(sizeof(int64_t) + raw_len + 1);
+    str[0] = len; /* store tagged length */
+    char *chars = (char *)(str + 1);
+    memset(chars, 0, raw_len + 1);
+    return (int64_t)str | TAG_STRING;
+}
+int64_t scm_string_from_cstr(int64_t cstr_ptr, int64_t len) {
+    const char *s = (const char *)cstr_ptr;
+    int64_t raw_len = GET_INT(len);
+    int64_t *str = (int64_t *)malloc(sizeof(int64_t) + raw_len + 1);
+    str[0] = len; /* store tagged length */
+    char *chars = (char *)(str + 1);
+    memcpy(chars, s, raw_len);
+    chars[raw_len] = '\0';
+    return (int64_t)str | TAG_STRING;
+}
+int64_t scm_string_ref(int64_t str, int64_t idx) {
+    int64_t *ptr = (int64_t *)UNTAG_PTR(str);
+    char *chars = (char *)(ptr + 1);
+    return MAKE_INT((unsigned char)chars[GET_INT(idx)]);
+}
+int64_t scm_string_set(int64_t str, int64_t idx, int64_t ch) {
+    int64_t *ptr = (int64_t *)UNTAG_PTR(str);
+    char *chars = (char *)(ptr + 1);
+    chars[GET_INT(idx)] = (char)GET_INT(ch);
+    return SCM_VOID;
+}
+int64_t scm_string_length(int64_t str) {
+    int64_t *ptr = (int64_t *)UNTAG_PTR(str);
+    return ptr[0]; /* already tagged */
+}
+int64_t scm_string_append(int64_t a, int64_t b) {
+    int64_t *pa = (int64_t *)UNTAG_PTR(a);
+    int64_t *pb = (int64_t *)UNTAG_PTR(b);
+    int64_t len_a = GET_INT(pa[0]);
+    int64_t len_b = GET_INT(pb[0]);
+    int64_t total = len_a + len_b;
+    int64_t *str = (int64_t *)malloc(sizeof(int64_t) + total + 1);
+    str[0] = MAKE_INT(total);
+    char *chars = (char *)(str + 1);
+    memcpy(chars, (char *)(pa + 1), len_a);
+    memcpy(chars + len_a, (char *)(pb + 1), len_b);
+    chars[total] = '\0';
+    return (int64_t)str | TAG_STRING;
+}
+int64_t scm_is_string(int64_t v) {
+    return (GET_TAG(v) == TAG_STRING) ? SCM_TRUE : SCM_FALSE;
+}
+
 /* ----- Display ----- */
 static void display_val(int64_t v) {
     switch (GET_TAG(v)) {
@@ -168,8 +222,10 @@ static void display_val(int64_t v) {
     case TAG_BOOL:
         printf("%s", (v == SCM_TRUE) ? "#t" : "#f");
         break;
-    case TAG_NULL:
-        printf("()");
+    case TAG_IMM:
+        if (v == SCM_NULL)
+            printf("()");
+        /* void prints nothing */
         break;
     case TAG_PAIR: {
         printf("(");
@@ -202,8 +258,12 @@ static void display_val(int64_t v) {
     case TAG_CLOS:
         printf("#<closure>");
         break;
-    case TAG_VOID:
+    case TAG_STRING: {
+        int64_t *ptr = (int64_t *)UNTAG_PTR(v);
+        char *chars = (char *)(ptr + 1);
+        printf("%s", chars);
         break;
+    }
     default:
         fprintf(stderr, "#<unknown:%" PRId64 ">", v);
         exit(1);

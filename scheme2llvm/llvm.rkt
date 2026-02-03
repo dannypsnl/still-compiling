@@ -15,13 +15,13 @@
 (define TAG_CLOS   3)
 (define TAG_FLOAT  4)
 (define TAG_BOOL   5)
-(define TAG_NULL   6)
-(define TAG_VOID   7)
+(define TAG_IMM    6)
+(define TAG_STRING 7)
 
 (define SCM_FALSE    5)  ; (0 << 3) | TAG_BOOL
 (define SCM_TRUE     13) ; (1 << 3) | TAG_BOOL
-(define SCM_NULL_VAL 6)  ; TAG_NULL
-(define SCM_VOID_VAL 7)  ; TAG_VOID
+(define SCM_NULL_VAL 6)  ; (0 << 3) | TAG_IMM
+(define SCM_VOID_VAL 14) ; (1 << 3) | TAG_IMM
 
 ;;; L4: lambda-lifted version of L3-clos
 (define-language L4
@@ -78,11 +78,18 @@
     (scm_is_vector     . 1)
     (scm_not           . 1)
     (scm_display       . 1)
-    (scm_displayln     . 1)))
+    (scm_displayln     . 1)
+    (scm_string_from_cstr . string-from-cstr)
+    (scm_string_ref    . 2)
+    (scm_string_set    . 3)
+    (scm_string_length . 1)
+    (scm_string_append . 2)
+    (scm_is_string     . 1)))
 
 (define (make-fn-type spec)
   (cond
     [(eq? spec 'float) (llvm-function-type i64 (list dbl))]
+    [(eq? spec 'string-from-cstr) (llvm-function-type i64 (list i64 i64))]
     [(number? spec) (fn-type-i64 spec)]
     [else (error 'make-fn-type "unknown spec: ~a" spec)]))
 
@@ -140,6 +147,13 @@
                                       (list (llvm-const-real dbl f))))]
      ;; Boolean literal
      [,b (maybe-ret (llvm-const-int i64 (if b SCM_TRUE SCM_FALSE)))]
+     ;; String literal
+     [,s (define str-bytes (string->bytes/utf-8 s))
+         (define len (bytes-length str-bytes))
+         (define global-str (llvm-build-global-string-ptr builder (bytes->string/utf-8 str-bytes)))
+         (define ptr-as-i64 (llvm-build-ptr->int builder global-str i64))
+         (maybe-ret (llvm-build-call2 builder (rt-type 'scm_string_from_cstr) (rt-fn 'scm_string_from_cstr)
+                                      (list ptr-as-i64 (llvm-const-int i64 (arithmetic-shift len 3)))))]
      ;; Null
      [(null) (maybe-ret (llvm-const-int i64 SCM_NULL_VAL))]
      ;; Void
@@ -236,6 +250,11 @@
          [(number?)  (llvm-build-call2 builder (rt-type 'scm_is_number) (rt-fn 'scm_is_number) ne*)]
          [(boolean?) (llvm-build-call2 builder (rt-type 'scm_is_boolean) (rt-fn 'scm_is_boolean) ne*)]
          [(vector?)  (llvm-build-call2 builder (rt-type 'scm_is_vector) (rt-fn 'scm_is_vector) ne*)]
+         [(string-ref)    (llvm-build-call2 builder (rt-type 'scm_string_ref) (rt-fn 'scm_string_ref) ne*)]
+         [(string-set!)   (llvm-build-call2 builder (rt-type 'scm_string_set) (rt-fn 'scm_string_set) ne*)]
+         [(string-length) (llvm-build-call2 builder (rt-type 'scm_string_length) (rt-fn 'scm_string_length) ne*)]
+         [(string-append) (llvm-build-call2 builder (rt-type 'scm_string_append) (rt-fn 'scm_string_append) ne*)]
+         [(string?)  (llvm-build-call2 builder (rt-type 'scm_is_string) (rt-fn 'scm_is_string) ne*)]
          [(not)      (llvm-build-call2 builder (rt-type 'scm_not) (rt-fn 'scm_not) ne*)]
          [(display)  (llvm-build-call2 builder (rt-type 'scm_display) (rt-fn 'scm_display) ne*)]
          [(displayln) (llvm-build-call2 builder (rt-type 'scm_displayln) (rt-fn 'scm_displayln) ne*)]))]
@@ -292,8 +311,19 @@
   (cond
     [(= tag TAG_INT)  (arithmetic-shift v -3)]
     [(= tag TAG_BOOL) (= v SCM_TRUE)]
-    [(= tag TAG_NULL) '()]
-    [(= tag TAG_VOID) (void)]
+    [(= tag TAG_IMM)
+     (cond [(= v SCM_NULL_VAL) '()]
+           [(= v SCM_VOID_VAL) (void)]
+           [else v])]
+    [(= tag TAG_STRING)
+     (define scm-string-length
+       (get-ffi-obj "scm_string_length" rt-lib (_fun _int64 -> _int64)))
+     (define scm-string-ref
+       (get-ffi-obj "scm_string_ref" rt-lib (_fun _int64 _int64 -> _int64)))
+     (define len (arithmetic-shift (scm-string-length v) -3))
+     (apply string
+            (for/list ([i len])
+              (integer->char (arithmetic-shift (scm-string-ref v (arithmetic-shift i 3)) -3))))]
     [(= tag TAG_FLOAT)
      (define scm-get-float
        (get-ffi-obj "scm_get_float" rt-lib (_fun _int64 -> _double)))
