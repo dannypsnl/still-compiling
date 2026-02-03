@@ -153,6 +153,7 @@ int64_t scm_is_pair(int64_t v) { return (GET_TAG(v) == TAG_PAIR) ? SCM_TRUE : SC
 int64_t scm_is_number(int64_t v) { return IS_NUM(v) ? SCM_TRUE : SCM_FALSE; }
 int64_t scm_is_boolean(int64_t v) { return (GET_TAG(v) == TAG_BOOL) ? SCM_TRUE : SCM_FALSE; }
 int64_t scm_is_vector(int64_t v) { return (GET_TAG(v) == TAG_VEC) ? SCM_TRUE : SCM_FALSE; }
+int64_t scm_is_procedure(int64_t v) { return (GET_TAG(v) == TAG_CLOS) ? SCM_TRUE : SCM_FALSE; }
 
 /* ----- Logic ----- */
 int64_t scm_not(int64_t v) { return (v == SCM_FALSE) ? SCM_TRUE : SCM_FALSE; }

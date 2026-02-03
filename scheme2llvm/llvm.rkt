@@ -76,6 +76,7 @@
     (scm_is_number     . 1)
     (scm_is_boolean    . 1)
     (scm_is_vector     . 1)
+    (scm_is_procedure  . 1)
     (scm_not           . 1)
     (scm_display       . 1)
     (scm_displayln     . 1)
@@ -250,6 +251,7 @@
          [(number?)  (llvm-build-call2 builder (rt-type 'scm_is_number) (rt-fn 'scm_is_number) ne*)]
          [(boolean?) (llvm-build-call2 builder (rt-type 'scm_is_boolean) (rt-fn 'scm_is_boolean) ne*)]
          [(vector?)  (llvm-build-call2 builder (rt-type 'scm_is_vector) (rt-fn 'scm_is_vector) ne*)]
+         [(procedure?) (llvm-build-call2 builder (rt-type 'scm_is_procedure) (rt-fn 'scm_is_procedure) ne*)]
          [(string-ref)    (llvm-build-call2 builder (rt-type 'scm_string_ref) (rt-fn 'scm_string_ref) ne*)]
          [(string-set!)   (llvm-build-call2 builder (rt-type 'scm_string_set) (rt-fn 'scm_string_set) ne*)]
          [(string-length) (llvm-build-call2 builder (rt-type 'scm_string_length) (rt-fn 'scm_string_length) ne*)]

@@ -15,7 +15,7 @@
                 ; string
                 string-ref string-set! string-length string-append
                 ; predicates
-                null? pair? number? boolean? vector? string?
+                null? pair? number? boolean? vector? string? procedure?
                 ; logic
                 not
                 ; io
