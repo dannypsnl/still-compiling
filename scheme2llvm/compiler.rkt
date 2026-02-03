@@ -207,7 +207,7 @@
         [(equal? e* e)  (l2-cps->l3 e*)]
         [else (loop e*)]))))
 
-(define-pass beta-reduce : L3 (e) -> L3 ()
+(define-pass beta-contraction : L3 (e) -> L3 ()
   (Expr : Expr (e) -> Expr ()
         [(,[e0] ,[e*] ...)
          (nanopass-case (L3 Expr) e0
@@ -436,11 +436,11 @@
             (pass remove-deadcode-in-begin 'remove-deadcode-in-begin)
             (pass eliminate-deadcode 'eliminate-deadcode)
             (pass constant-propagate 'constant-propagate)
-            (pass beta-reduce 'beta-reduce)
+            (pass beta-contraction 'beta-contraction)
             (pass constant-propagate 'constant-propagate)
-            (pass beta-reduce 'beta-reduce)
+            (pass beta-contraction 'beta-contraction)
             (pass constant-propagate 'constant-propagate)
-            (pass beta-reduce 'beta-reduce)
+            (pass beta-contraction 'beta-contraction)
             (pass cps-conversion 'cps-conversion)
             (pass begin-wrapping 'begin-wrapping)
             (pass remove-define-procedure-form 'remove-define-procedure-form)
