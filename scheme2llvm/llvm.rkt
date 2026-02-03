@@ -5,7 +5,8 @@
          (only-in ffi/unsafe ffi-lib)
          racket-llvm
          racket/runtime-path
-         "compiler.rkt")
+         "compiler.rkt"
+         "environment.rkt")
 
 ;;; Tag constants
 (define TAG_INT    0)
@@ -112,17 +113,17 @@
                                                   (make-list (length x*) i64))))
          (define entry (llvm-append-basic-block lam))
          (llvm-builder-position-at-end builder entry)
-         (define vars (make-hash))
+         (define env (make-env))
          (for ([x x*]
                [i (length x*)])
-           (hash-set! vars x (llvm-get-param lam i)))
-         ((compile-with vars) body #:tail? #t)
+           (bind! env x (llvm-get-param lam i)))
+         ((compile-with env) body #:tail? #t)
 
          ; At this point all data are emitted to LLVM, this is a junked value, we will ignore this output
          e]))
 
 ;;; Main expression compiler
-(define (compile-with [vars (make-hash)])
+(define (compile-with [env (make-env)])
   (define (compile-expr e #:tail? [tail? #f])
     ;; Helper: emit ret if in tail position, return val either way
     (define (maybe-ret val)
@@ -131,7 +132,7 @@
     (nanopass-case
      (L4 Expr) e
      ;; Variable lookup
-     [,x (maybe-ret (hash-ref vars x))]
+     [,x (maybe-ret (lookup env x))]
      ;; Integer literal: tag it (n << 3)
      [,n (maybe-ret (llvm-const-int i64 (arithmetic-shift n 3)))]
      ;; Float literal: call scm_make_float
@@ -256,7 +257,7 @@
      ;; Define
      [(define ,x ,e)
       (define ne (compile-expr e))
-      (hash-set! vars x ne)
+      (bind! env x ne)
       (maybe-ret ne)]
      ;; Lambda-lifted reference: convert function pointer to i64
      [(lambda-lifted ,x (,x* ...) ,body)
@@ -265,10 +266,10 @@
                                       i64))]
      ;; Let
      [(let ([,x* ,e*] ...) ,body)
-      (define new-vars (hash-copy vars))
+      (define new-env (extend env))
       (for ([x x*] [e e*])
-        (hash-set! new-vars x (compile-expr e)))
-      ((compile-with new-vars) body #:tail? tail?)]
+        (bind! new-env x (compile-expr e)))
+      ((compile-with new-env) body #:tail? tail?)]
      [else (error 'compile-with "unhandled expression: ~a" e)]))
   compile-expr)
 
