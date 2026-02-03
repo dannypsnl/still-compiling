@@ -358,6 +358,30 @@
         [(define ,x ,e) (freevars e)]
         [else (set)]))
 
+;;; Remove dead expressions from begin blocks
+(define-pass remove-deadcode-in-begin : L3 (e) -> L3 ()
+  (definitions
+    (define (dead? e)
+      (nanopass-case (L3 Expr) e
+                     [(lambda (,x ...) ,e) #t]
+                     [,n #t]  ; fixnum
+                     [,f #t]  ; flonum
+                     [,b #t]  ; boolean
+                     [,s #t]  ; string
+                     [(null) #t]
+                     [(void) #t]
+                     [else #f])))
+
+  (Expr : Expr (e) -> Expr ()
+        [(begin ,[body*] ... ,[body])
+         (define live-body*
+           (for/list ([b body*]
+                      #:unless (dead? b))
+             b))
+         (if (empty? live-body*)
+             body
+             `(begin ,live-body* ... ,body))]))
+
 ;;; L3-clos: closure-converted form
 (define-language L3-clos
   (extends L3)
@@ -409,7 +433,12 @@
         p))
   ((compose (pass closure-call 'closure-call)
             (pass closure-conversion 'closure-conversion)
+            (pass remove-deadcode-in-begin 'remove-deadcode-in-begin)
             (pass eliminate-deadcode 'eliminate-deadcode)
+            (pass constant-propagate 'constant-propagate)
+            (pass beta-reduce 'beta-reduce)
+            (pass constant-propagate 'constant-propagate)
+            (pass beta-reduce 'beta-reduce)
             (pass constant-propagate 'constant-propagate)
             (pass beta-reduce 'beta-reduce)
             (pass cps-conversion 'cps-conversion)
