@@ -237,6 +237,23 @@
           x)))
   (Expr : Expr (e) -> Expr ()
         [,x (replace/propagated x)]
+        [(lambda (,x* ...) ,body)
+         ; If subst contains variables not in x* (parameter of current lambda form),
+         ; then we should subst these variables in body
+         (define should-substs
+           (map (lambda (x)
+                  (cons x (hash-ref subst x #f)))
+                x*))
+         (for ([x x*]) (hash-remove! subst x))
+         (define new-body (Expr body))
+
+         ; Restore substitutions for parameters that had values
+         (for ([entry should-substs])
+           (match-define (cons x saved-val) entry)
+           (when saved-val
+             (hash-set! subst x saved-val)))
+
+         `(lambda (,x* ...) ,new-body)]
         [(let ([,x* ,e*] ...) ,body)
          ;; Process bindings: propagate if value is constant/variable
          (define-values (kept-x kept-e)
