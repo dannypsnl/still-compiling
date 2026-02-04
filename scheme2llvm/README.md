@@ -3,7 +3,6 @@
 1. CPS conversion (for `call/cc`)
 2. Closure conversion
 3. Compile to LLVM
-   - Tail call optimization (use musttail of LLVM)
 
 ## Features
 

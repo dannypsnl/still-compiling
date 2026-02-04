@@ -268,7 +268,6 @@
                                      (llvm-pointer-type ft)))
       (define call (llvm-build-call2 builder ft f (map compile-expr e*)))
       (when tail?
-        (llvm-set-tail-call-kind call 2)  ; 2 = musttail
         (llvm-build-ret builder call))
       call]
      ;; Begin
