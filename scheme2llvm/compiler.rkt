@@ -399,6 +399,21 @@
              body
              `(begin ,live-body* ... ,body))]))
 
+;;; Trivialize begin: flatten tail-position begin into outer begin
+(define-pass trivialize-begin/step : L3 (e) -> L3 ()
+  (Expr : Expr (e) -> Expr ()
+        [(begin ,body* ... ,body)
+         (nanopass-case (L3 Expr) body
+                        [(begin ,body2* ... ,body)
+                         `(begin ,body* ... ,body2* ... ,(Expr body))]
+                        [else `(begin ,body* ... ,body)])]))
+(define (trivialize-begin e)
+  (let loop ([e e])
+    (define e- (trivialize-begin/step e))
+    (cond
+      [(equal? e- e) e-]
+      [else (loop e-)])))
+
 ;;; L3-clos: closure-converted form
 (define-language L3-clos
   (extends L3)
@@ -450,6 +465,7 @@
         p))
   ((compose (pass closure-call 'closure-call)
             (pass closure-conversion 'closure-conversion)
+            (pass trivialize-begin 'trivialize-begin)
             (pass remove-deadcode-in-begin 'remove-deadcode-in-begin)
             (pass eliminate-deadcode 'eliminate-deadcode)
             (pass constant-propagate 'constant-propagate)
