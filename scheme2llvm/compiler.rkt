@@ -142,11 +142,14 @@
         [(with-cont (void) ,body0) `(,body0 (void))]
         [(with-cont (if ,e0 ,e1 ,e2) ,body0)
          (define r (gensym 'r))
-         `(with-cont ,e0
-            (lambda (,r)
-              (if ,r
-                  (with-cont ,e1 ,body0)
-                  (with-cont ,e2 ,body0))))]
+         (define k (gensym 'k))
+         `((lambda (,k)
+             (with-cont ,e0
+               (lambda (,r)
+                 (if ,r
+                     (with-cont ,e1 ,k)
+                     (with-cont ,e2 ,k)))))
+           ,body0)]
         [(with-cont (lambda (,x* ...) ,body) ,body0)
          (define $k (gensym 'k))
          `(,body0 (lambda (,x* ... ,$k)
