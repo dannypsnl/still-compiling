@@ -1,4 +1,6 @@
 *.ll
 *.out
 *.bc
+*.o
+*.so
 build/
